@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+
+# ROS 2 / colcon generated folders
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+
+# ROS bag / large recording files
+*.bag
+*.db3
+*.mcap
+
+# Generated graph files
+frames_*.gv
+frames_*.pdf
