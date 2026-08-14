@@ -40,7 +40,7 @@ validation/13-release-candidate
 ## Phase 1 — Reproducible Pi build
 
 - **Branch name:** `fix/01-reproducible-pi-build`
-- **Status:** Planned.
+- **Status:** Implementation complete; target-Pi validation pending.
 - **Goal:** Make dependency installation and a clean ROS 2 build reproducible on the supported Raspberry Pi environment.
 - **Primary issues addressed:** Unitree sibling SDK paths; incomplete package manifests; undeclared serial/ROS dependencies; ambiguous target prerequisites.
 - **Codex/software work:** Correct build metadata and dependency declarations, document the supported OS/ROS/architecture, and add clean-build checks without changing autonomy algorithms.

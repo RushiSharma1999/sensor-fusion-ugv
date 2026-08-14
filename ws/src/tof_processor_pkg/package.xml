@@ -7,6 +7,8 @@
   <maintainer email="cuirom@todo.todo">cuirom</maintainer>
   <license>TODO: License declaration</license>
 
+  <buildtool_depend>ament_python</buildtool_depend>
+
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
 
