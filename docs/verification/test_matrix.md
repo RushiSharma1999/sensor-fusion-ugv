@@ -6,10 +6,55 @@ This matrix is the planned acceptance inventory for the robot-ready roadmap. A r
 
 Allowed initial status is **Not Run**. Later results should use explicit terms such as **Pass**, **Fail**, **Blocked**, or **Not Applicable**, with evidence. “Automated” identifies software-executable checks; “hardware” identifies a physical test and must record whether wheels were raised or the robot was on a controlled floor.
 
+## Phase 1 target-Pi acceptance procedure
+
+Run this procedure on a fresh supported Raspberry Pi image. It verifies build, install, test, and package discovery only; it does not require any hardware node to connect to a device.
+
+```bash
+git clone <repository-url>
+cd sensor-fusion-ugv
+
+uname -a
+uname -m
+lsb_release -a || cat /etc/os-release
+source /opt/ros/jazzy/setup.bash
+printenv ROS_DISTRO
+
+rosdep update
+rosdep install --from-paths ws/src --ignore-src -r -y
+
+chmod +x build_ws.sh scripts/verify_build.sh scripts/validate_ros_packages.py
+./build_ws.sh
+source ws/install/setup.bash
+
+cd ws
+colcon test
+colcon test-result --verbose
+cd ..
+
+ros2 pkg executables esp_bridge
+ros2 pkg executables esp_fusion_pkg
+ros2 pkg executables fusion_pkg
+ros2 pkg executables gap_follow
+ros2 pkg executables lidar_logger_pkg
+ros2 pkg executables tof_processor_pkg
+ros2 pkg executables ultrasonic_pkg
+ros2 pkg executables unitree_lidar_ros2
+ros2 pkg executables vfh_pkg
+ros2 pkg executables vision_uart_pkg
+```
+
+Record the clone commit, environment inventory, rosdep output, build/test summaries, executable output, and the Unitree link result. The SDK link must resolve the checked-in `ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a` without a source edit.
+
 | ID | Subsystem | Requirement / claim | Phase | Verification method | Automated or hardware | Expected evidence | Status | Commit/tag | Notes |
 |---|---|---|---:|---|---|---|---|---|---|
-| BUILD-001 | Clean build | A fresh target-Pi clone installs documented dependencies and builds the intended workspace. | 1 | Execute versioned clone, dependency installation, `colcon build`, and `colcon test` procedure on a clean supported Pi image. | Deployment + automated | Environment inventory, shell transcript, rosdep/build/test summaries. | Not Run | — | Must not use undeclared developer-machine state. |
-| BUILD-002 | Package metadata | All production runtime/build imports and vendor libraries are declared and resolved on supported architectures. | 1 | Static manifest audit plus clean dependency resolution and per-package build. | Automated | Audit output and package build logs for aarch64; x86_64 if supported. | Not Run | — | Unitree vendor binaries must match target architecture. |
+| BUILD-001 | Dependency resolution | A fresh target-Pi clone resolves all declared workspace dependencies through the documented rosdep procedure. | 1 | Run `rosdep update` and `rosdep install --from-paths ws/src --ignore-src -r -y` on a clean supported Pi image. | Deployment + automated | Environment inventory, clone commit, and complete rosdep transcript. | Not Run | — | Must not use undeclared developer-machine or global-pip state. |
+| BUILD-002 | Clean build | The intended workspace builds on Ubuntu 24.04 / ROS 2 Jazzy / Linux `aarch64`. | 1 | Run `./build_ws.sh` after BUILD-001 on the fresh target Pi. | Automated on target | Colcon build summary and compiler/linker output. | Not Run | — | macOS static checks do not pass this target claim. |
+| BUILD-003 | Workspace tests | Workspace tests complete without build, install, or packaging failures. | 1 | Source `ws/install/setup.bash`, run `colcon test`, then `colcon test-result --verbose`. | Automated on target | Colcon test summary and detailed results. | Not Run | — | Hardware devices need not be connected. |
+| BUILD-004 | Build tooling | Developer build/verification scripts locate the workspace reliably, pass shell/static validation, and fail clearly when Jazzy is unavailable. | 1 | Run `bash -n` on shell tools, run the static validator, and exercise the missing-Jazzy prerequisite path. | Automated static | Phase 1 static-validation artifact and exact command output. | Pass | Pending (uncommitted; base `20f5563`) | Passed on macOS 26.5.1 ARM64; this does not replace BUILD-001 through BUILD-003. |
+| PKG-001 | Installed packages | Every checked-in ROS executable is installed and discoverable through `ros2 pkg executables`. | 1 | Run the executable-discovery commands above or `./scripts/verify_build.sh` after a clean build. | Automated on target | Command output for all expected package/executable pairs. | Not Run | — | No hardware connection is required. |
+| UNITREE-BUILD-001 | Unitree SDK linkage | The Unitree ROS wrapper resolves the checked-in sibling SDK include path and links the matching `aarch64` Linux archive. | 1 | Inspect configuration diagnostics and linker input/output during a clean `aarch64` build. | Automated on target | CMake configuration and link log tied to the vendor archive checksum. | Not Run | — | Static inspection confirms paths and archive architecture; Pi linkage remains pending. |
+| DEP-001 | Dependency metadata | All current runtime Python imports, C++/launch includes, and external serial/PCL requirements are represented in package metadata. | 1 | Run `python3 scripts/validate_ros_packages.py` and perform a direct manifest/source comparison. | Automated static | Static audit output and reviewed manifest diff. | Pass | Pending (uncommitted; base `20f5563`) | Verified against current source; clean rosdep resolution remains BUILD-001. |
 | LIDAR-001 | Unitree driver | Unitree driver starts successfully and reports initialization failure deterministically. | 2 | Automated failure-path test and physical device startup using approved transport/configuration. | Automated + hardware | Test report, driver logs, model/firmware/transport record. | Not Run | — | Exact model must be confirmed, not inferred from older docs. |
 | LIDAR-002 | Unitree cloud | `/unilidar/cloud` is fresh and contains valid finite point fields at the required operating rate. | 2 | Inspect topic type/rate/age and record a stationary/motion sample. | Hardware | Topic statistics and rosbag/capture tied to sensor configuration. | Not Run | — | Acceptance bounds must be specified before test. |
 | TF-001 | TF | Unitree sensor frames are connected to `base_link` with measured transform and valid orientation/timestamps. | 2 | TF graph inspection, quaternion checks, static placement checks, and measured extrinsic review. | Automated + hardware | TF graph, test output, measurement worksheet, configuration. | Not Run | — | Current repository trees are disconnected. |

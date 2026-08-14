@@ -1,0 +1,111 @@
+# Phase 1 static verification artifact
+
+Date: 2026-08-13T22:08:44-07:00
+Branch: fix/01-reproducible-pi-build
+Commit: Pending (uncommitted changes based on 20f5563)
+
+## Environment
+
+```text
+uname -a:
+Darwin MacBookPro.lan 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:38:56 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T6000 arm64
+
+uname -m:
+arm64
+
+sw_vers:
+ProductName: macOS
+ProductVersion: 26.5.1
+BuildVersion: 25F80
+
+Python 3.13.7
+ROS_DISTRO: unset
+ros2: not found
+colcon: not found
+rosdep: not found
+cmake: not found
+```
+
+This is not Ubuntu, Linux `aarch64`, ROS 2 Jazzy, or the target Raspberry Pi.
+
+## Passed static checks
+
+```text
+$ python3 scripts/validate_ros_packages.py
+PASS: validated 10 ROS manifests, Python entry points/import dependencies, Unitree SDK architecture assets, and installed launch/RViz resource paths.
+
+$ xmllint --noout ws/src/*/package.xml
+exit 0
+
+$ python3 -m compileall -q scripts ws/src
+exit 0
+
+$ bash -n build_ws.sh
+exit 0
+
+$ bash -n scripts/verify_build.sh
+exit 0
+
+$ bash -n run_lidar.sh
+exit 0
+
+$ git diff --check
+exit 0
+```
+
+The dependency audit covered 10 ROS manifests, nine `ament_python` packages, 12 Python console entry points, the Unitree C++ wrapper, and installed launch/RViz resources.
+
+## Unitree archive inspection
+
+```text
+$ objdump -f ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a
+file format elf64-littleaarch64
+architecture: aarch64
+
+$ objdump -f ws/src/unitree_lidar_sdk/lib/x86_64/libunilidar_sdk2.a
+file format elf64-x86-64
+architecture: x86_64
+
+$ shasum -a 256 ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a ws/src/unitree_lidar_sdk/lib/x86_64/libunilidar_sdk2.a
+4e334b67c1a92152c89363d8014a6e361d7bf590e58484d7d6ddc8541389de28  ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a
+a8530545cbd435e3a96b9a099cd57921202aed3d690066f55ea0ade4310212d3  ws/src/unitree_lidar_sdk/lib/x86_64/libunilidar_sdk2.a
+
+$ nm -u ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a
+$ nm -u ws/src/unitree_lidar_sdk/lib/x86_64/libunilidar_sdk2.a
+both archives reference pthread mutex symbols; CMake links Threads::Threads explicitly
+```
+
+Archive inspection does not prove successful linkage or runtime compatibility on the target Pi.
+
+## Blocked ROS checks
+
+```text
+$ ./build_ws.sh
+Building Sensor Fusion UGV ROS 2 workspace...
+ERROR: ROS 2 Jazzy was not found at /opt/ros/jazzy/setup.bash
+Install ROS 2 Jazzy on Ubuntu 24.04 before building.
+exit 1
+
+$ ./scripts/verify_build.sh
+ERROR: ROS 2 Jazzy was not found at /opt/ros/jazzy/setup.bash
+This verification script requires Ubuntu 24.04 with ROS 2 Jazzy.
+exit 1
+
+$ for each of the nine ament_python packages: python3 setup.py --name --version
+ModuleNotFoundError: No module named 'setuptools'
+blocked for all nine packages before setup metadata execution
+
+$ for each of the nine ament_python packages: /usr/bin/python3 setup.py --name --version
+esp_bridge 0.0.0
+esp_fusion_pkg 0.0.0
+fusion_pkg 0.0.0
+gap_follow 0.0.0
+lidar_logger_pkg 0.0.0
+tof_processor_pkg 0.0.0
+ultrasonic_pkg 0.0.0
+vfh_pkg 0.0.0
+vision_uart_pkg 0.0.0
+exit 0
+```
+
+The manifests now explicitly declare the `ament_python` build tool. Full ROS 2 Jazzy build and installed ROS package imports were not performed in this environment. Target-Pi validation remains required. No hardware test was attempted or implied.

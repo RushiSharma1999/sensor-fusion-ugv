@@ -1,8 +1,9 @@
 import os
-import subprocess
 
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
+
 
 def generate_launch_description():
     # Run unitree lidar
@@ -36,8 +37,8 @@ def generate_launch_description():
     )
 
     # Run Rviz
-    package_path = subprocess.check_output(['ros2', 'pkg', 'prefix', 'unitree_lidar_ros2']).decode('utf-8').rstrip()
-    rviz_config_file = os.path.join(package_path, 'share', 'unitree_lidar_ros2', 'view.rviz')
+    package_path = get_package_share_directory('unitree_lidar_ros2')
+    rviz_config_file = os.path.join(package_path, 'rviz', 'view.rviz')
     print("rviz_config_file = " + rviz_config_file)
     rviz_node = Node(
         package='rviz2',

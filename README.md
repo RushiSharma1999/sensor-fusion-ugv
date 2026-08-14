@@ -1,136 +1,149 @@
 # Sensor Fusion-Based Autonomous UGV
 
-This repository contains the ROS 2 workspace for the Sensor Fusion-Based Autonomous UGV project.
+This repository contains the ROS 2 workspace for the Sensor Fusion-Based Autonomous UGV project. It includes LiDAR, ultrasonic, ToF, ESP serial, camera UART, fusion, and reactive-navigation packages.
 
-The project integrates LiDAR, ultrasonic sensors, ToF processing, ESP32 serial communication, camera UART data, and obstacle avoidance algorithms for an autonomous unmanned ground vehicle.
+The canonical and planned system boundaries are documented in [`docs/architecture/canonical_architecture.md`](docs/architecture/canonical_architecture.md). Building the workspace does not prove sensor operation, motor operation, safety, or autonomous driving.
 
-## Repository Structure
+## Supported build target
 
-```text
-sensor-fusion-ugv/
-├── README.md
-├── build_ws.sh
-├── run_lidar.sh
-├── ws/
-│   └── src/
-│       ├── esp_bridge/
-│       ├── esp_fusion_pkg/
-│       ├── fusion_pkg/
-│       ├── gap_follow/
-│       ├── lidar_logger_pkg/
-│       ├── tof_processor_pkg/
-│       ├── ultrasonic_pkg/
-│       ├── unitree_lidar_ros2/
-│       ├── unitree_lidar_sdk/
-│       ├── vfh_pkg/
-│       └── vision_uart_pkg/
-```
+The intended production build environment is:
 
-## Package Overview
+- Ubuntu 24.04;
+- ROS 2 Jazzy;
+- Linux `aarch64` on the target Raspberry Pi;
+- Python 3, colcon, and rosdep; and
+- a C++17 compiler and CMake as supplied by the Ubuntu/ROS build toolchain.
 
-- `ws/src/esp_bridge`: Sends velocity or movement commands to the ESP32 over serial.
-- `ws/src/esp_fusion_pkg`: Handles ESP and LiDAR fusion driver logic.
-- `ws/src/fusion_pkg`: Main sensor fusion node.
-- `ws/src/gap_follow`: Gap-following obstacle avoidance node.
-- `ws/src/lidar_logger_pkg`: LiDAR data logging node.
-- `ws/src/tof_processor_pkg`: ToF sensor processing node.
-- `ws/src/ultrasonic_pkg`: Ultrasonic sensor processing node.
-- `ws/src/unitree_lidar_ros2`: Unitree LiDAR ROS 2 driver.
-- `ws/src/unitree_lidar_sdk`: Unitree LiDAR SDK.
-- `ws/src/vfh_pkg`: Vector Field Histogram navigation node.
-- `ws/src/vision_uart_pkg`: Camera UART and safety mux nodes.
+The checked-in Unitree SDK contains Linux static libraries for exactly these processor names:
 
-## Requirements
+- `aarch64` — the intended Raspberry Pi target;
+- `x86_64` — a supported Linux development architecture.
 
-This project is intended to be built and run on the Raspberry Pi or another Ubuntu machine with ROS 2 Jazzy installed.
+The Unitree CMake projects reject non-Linux systems and any other processor name with an explicit error. No vendor library is present for 32-bit ARM, `arm64`-named toolchains, or other architectures. Do not add an architecture alias without confirming that the vendor binary ABI is compatible.
 
-Required software:
+The repository has not yet been verified by this phase on the target Raspberry Pi. See [`docs/verification/test_matrix.md`](docs/verification/test_matrix.md) for the pending acceptance procedure.
 
-- Ubuntu 24.04
-- ROS 2 Jazzy
-- Python 3
-- colcon
-- rosdep
+## Build prerequisites
 
-> Note: This project is not intended to be built directly on macOS unless ROS 2 is separately installed and configured in a compatible environment.
-
-## Build Instructions
-
-### 1. Clone the repository
+Install ROS 2 Jazzy for Ubuntu 24.04 using the official ROS instructions. The following tools must also be available:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/sensor-fusion-ugv.git
+sudo apt update
+sudo apt install python3-colcon-common-extensions python3-rosdep
+```
+
+Initialize rosdep once on a new operating-system installation if it has not already been initialized:
+
+```bash
+sudo rosdep init
+```
+
+The package manifests declare the source-level dependencies used by the workspace. In particular:
+
+- `python3-serial` supplies the `serial` Python module used by `esp_bridge`, `esp_fusion_pkg`, and `vision_uart_pkg`;
+- `libpcl-all-dev` supplies the PCL headers/libraries used by the Unitree wrapper;
+- `ament_python`, `ament_cmake`, `rclpy`, `rclcpp`, ROS message packages, TF2, PCL conversions, launch, and RViz dependencies are declared by the packages that use them; and
+- the Unitree SDK headers and architecture-specific static library are checked into `ws/src/unitree_lidar_sdk` and are not downloaded by the build.
+
+Use rosdep to resolve those declarations. Do not substitute undocumented global `pip` installs for the declared Ubuntu/ROS dependencies.
+
+## Fresh-clone build procedure
+
+```bash
+git clone <repository-url>
 cd sensor-fusion-ugv
-```
 
-### 2. Build using the provided script
+source /opt/ros/jazzy/setup.bash
+rosdep update
+rosdep install --from-paths ws/src --ignore-src -r -y
 
-```bash
-chmod +x build_ws.sh run_lidar.sh
 ./build_ws.sh
 source ws/install/setup.bash
 ```
 
-## Manual Build Option
-
-If the build script does not work, the workspace can be built manually.
+`build_ws.sh` finds `ws` relative to its own location, requires ROS 2 Jazzy and colcon, and runs:
 
 ```bash
-cd sensor-fusion-ugv
-source /opt/ros/jazzy/setup.bash
-cd ws
 colcon build --symlink-install
-source install/setup.bash
 ```
 
-## Run LiDAR
-
-After building the workspace, run:
+It intentionally does not run rosdep or install system software. Dependency installation remains an explicit, reviewable step. Additional colcon arguments may be passed through, for example:
 
 ```bash
-cd sensor-fusion-ugv
-./run_lidar.sh
+./build_ws.sh --packages-select fusion_pkg
 ```
 
-## Useful ROS 2 Commands
+## Build and package verification
 
-List active ROS 2 topics:
+On Ubuntu 24.04 with ROS 2 Jazzy and dependencies already installed, run:
 
 ```bash
-ros2 topic list
+./scripts/verify_build.sh
 ```
 
-List active ROS 2 nodes:
+The script performs the static package audit, builds the workspace, runs `colcon test`, reports test results, and confirms all checked-in ROS console executables are discoverable. It does not open hardware devices or start any robot node.
+
+The ROS-independent static audit can also run on a development host without ROS:
 
 ```bash
-ros2 node list
+python3 scripts/validate_ros_packages.py
 ```
 
-View LiDAR scan data:
-
-```bash
-ros2 topic echo /scan
-```
-
-View velocity command data:
-
-```bash
-ros2 topic echo /cmd_vel
-```
-
-## Notes
-
-The `ws/build`, `ws/install`, and `ws/log` folders are generated by `colcon build` and should not be committed to GitHub.
-
-If `source ws/install/setup.bash` fails, build the workspace first using:
-
-```bash
-./build_ws.sh
-```
-
-or manually:
+For an explicit manual test sequence:
 
 ```bash
 cd ws
-colcon build --symlink-install
+colcon test
+colcon test-result --verbose
 ```
+
+Expected package executables can be inspected after sourcing the workspace:
+
+```bash
+ros2 pkg executables esp_bridge
+ros2 pkg executables esp_fusion_pkg
+ros2 pkg executables fusion_pkg
+ros2 pkg executables gap_follow
+ros2 pkg executables lidar_logger_pkg
+ros2 pkg executables tof_processor_pkg
+ros2 pkg executables ultrasonic_pkg
+ros2 pkg executables unitree_lidar_ros2
+ros2 pkg executables vfh_pkg
+ros2 pkg executables vision_uart_pkg
+```
+
+## Workspace layout
+
+```text
+sensor-fusion-ugv/
+├── build_ws.sh
+├── run_lidar.sh
+├── scripts/
+│   ├── validate_ros_packages.py
+│   └── verify_build.sh
+└── ws/
+    └── src/
+        ├── esp_bridge/
+        ├── esp_fusion_pkg/
+        ├── fusion_pkg/
+        ├── gap_follow/
+        ├── lidar_logger_pkg/
+        ├── tof_processor_pkg/
+        ├── ultrasonic_pkg/
+        ├── unitree_lidar_ros2/
+        ├── unitree_lidar_sdk/
+        ├── vfh_pkg/
+        └── vision_uart_pkg/
+```
+
+`ws/build`, `ws/install`, and `ws/log` are generated by colcon and are ignored by Git.
+
+## Runtime hardware requirements
+
+Runtime nodes require their configured LiDAR, serial, UART, and sensor interfaces. Those devices are not required for Phase 1 build/install verification, and this README does not assert that their models, ports, network configuration, transforms, or behavior have been confirmed.
+
+After a successful build, `./run_lidar.sh` launches the Unitree ROS wrapper and RViz using the installed `launch/launch.py` and `rviz/view.rviz` resources. It requires the separately configured LiDAR connection. The current Unitree wrapper publishes `PointCloud2` and IMU data; it does not provide the planned robot-centric `/scan` integration.
+
+## Later deployment requirements
+
+Robot provisioning, stable device mapping, preflight checks, stopped-state bring-up, explicit enable, and production launch are deferred to later roadmap phases. `build_ws.sh` and `scripts/verify_build.sh` are developer/build tools, not robot deployment or autonomous bring-up commands.
