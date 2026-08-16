@@ -13,7 +13,7 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOT = REPOSITORY_ROOT / 'ws' / 'src'
 
-EXPECTED_PACKAGES = {
+EXPECTED_ROS_PACKAGES = {
     'esp_bridge',
     'esp_fusion_pkg',
     'fusion_pkg',
@@ -25,6 +25,7 @@ EXPECTED_PACKAGES = {
     'vfh_pkg',
     'vision_uart_pkg',
 }
+EXPECTED_SOURCE_PACKAGES = EXPECTED_ROS_PACKAGES | {'unitree_lidar_sdk'}
 
 PYTHON_IMPORT_DEPENDENCIES = {
     'geometry_msgs': 'geometry_msgs',
@@ -245,6 +246,7 @@ def validate_unitree_package(
         'CMAKE_SYSTEM_NAME',
         'CMAKE_SYSTEM_PROCESSOR',
         'libunilidar_sdk2.a',
+        'unitree_sdk_library.txt',
         'message(FATAL_ERROR',
         'install(DIRECTORY launch',
         'install(DIRECTORY rviz',
@@ -315,14 +317,62 @@ def validate_unitree_package(
             'CMAKE_SYSTEM_NAME',
             'CMAKE_SYSTEM_PROCESSOR',
             'find_package(Threads REQUIRED)',
+            'install(TARGETS ${UNITREE_SDK_EXAMPLE_TARGETS}',
+            'install(DIRECTORY include/',
+            'install(FILES "${UNITREE_SDK_LIBRARY}"',
             'message(FATAL_ERROR',
         ):
             require(token in sdk_cmake, f'unitree_lidar_sdk: CMake token is missing: {token}')
 
 
+def validate_repository_scripts() -> None:
+    script_requirements = {
+        REPOSITORY_ROOT / 'build_ws.sh': (
+            '/opt/ros/${UGV_ROS_DISTRO}/setup.bash',
+            'UGV_ROS_DISTRO="humble"',
+            'UGV_CLEAN_BUILD',
+            'colcon build --symlink-install',
+        ),
+        REPOSITORY_ROOT / 'scripts' / 'verify_build.sh': (
+            '/opt/ros/${UGV_ROS_DISTRO}/setup.bash',
+            'UGV_ROS_DISTRO="humble"',
+            'colcon list --base-paths',
+            'lib/aarch64/libunilidar_sdk2.a',
+            'unitree_sdk_library.txt',
+            'colcon test-result --verbose',
+        ),
+        REPOSITORY_ROOT / 'run_lidar.sh': (
+            '/opt/ros/${UGV_ROS_DISTRO}/setup.bash',
+            'UGV_ROS_DISTRO="humble"',
+            'ros2 launch unitree_lidar_ros2 launch.py',
+        ),
+    }
+
+    for script_path, required_tokens in script_requirements.items():
+        require(script_path.is_file(), f'{script_path.relative_to(REPOSITORY_ROOT)} is missing')
+        if not script_path.is_file():
+            continue
+        script_text = script_path.read_text(encoding='utf-8')
+        # The Jazzy migration is deferred; active scripts must not source its setup path.
+        require(
+            '/opt/ros/jazzy' not in script_text,
+            f'{script_path.relative_to(REPOSITORY_ROOT)} still requires the deferred ROS 2 Jazzy target',
+        )
+        for token in required_tokens:
+            require(
+                token in script_text,
+                f'{script_path.relative_to(REPOSITORY_ROOT)}: required token is missing: {token}',
+            )
+
+
 def main() -> int:
     manifest_paths = sorted(SOURCE_ROOT.glob('*/package.xml'))
-    discovered_packages: set[str] = set()
+    discovered_ros_packages: set[str] = set()
+    discovered_source_packages = {
+        path.name
+        for path in SOURCE_ROOT.iterdir()
+        if path.is_dir() and ((path / 'package.xml').is_file() or (path / 'CMakeLists.txt').is_file())
+    }
 
     for manifest_path in manifest_paths:
         package_dir = manifest_path.parent
@@ -333,7 +383,7 @@ def main() -> int:
             continue
 
         package_name = (manifest_root.findtext('name') or '').strip()
-        discovered_packages.add(package_name)
+        discovered_ros_packages.add(package_name)
         require(package_name == package_dir.name, f'{package_dir.name}: manifest name is {package_name!r}')
 
         build_type = (manifest_root.findtext('./export/build_type') or '').strip()
@@ -346,20 +396,22 @@ def main() -> int:
             errors.append(f'{package_name}: unsupported or missing build type {build_type!r}')
 
     require(
-        EXPECTED_PACKAGES <= discovered_packages,
-        f'missing expected ROS packages: {sorted(EXPECTED_PACKAGES - discovered_packages)}',
+        EXPECTED_ROS_PACKAGES == discovered_ros_packages,
+        'ROS package set differs from expected: '
+        f'missing={sorted(EXPECTED_ROS_PACKAGES - discovered_ros_packages)}, '
+        f'unexpected={sorted(discovered_ros_packages - EXPECTED_ROS_PACKAGES)}',
+    )
+    require(
+        EXPECTED_SOURCE_PACKAGES == discovered_source_packages,
+        'source package set differs from recovered eleven-package baseline: '
+        f'missing={sorted(EXPECTED_SOURCE_PACKAGES - discovered_source_packages)}, '
+        f'unexpected={sorted(discovered_source_packages - EXPECTED_SOURCE_PACKAGES)}',
     )
 
     for python_path in sorted(SOURCE_ROOT.rglob('*.py')):
         parse_python(python_path)
 
-    run_lidar_path = REPOSITORY_ROOT / 'run_lidar.sh'
-    require(run_lidar_path.is_file(), 'run_lidar.sh is missing')
-    if run_lidar_path.is_file():
-        require(
-            'ros2 launch unitree_lidar_ros2 launch.py' in run_lidar_path.read_text(encoding='utf-8'),
-            'run_lidar.sh no longer launches the installed Unitree launch file',
-        )
+    validate_repository_scripts()
 
     if errors:
         print(f'FAIL: {len(errors)} static package validation error(s)', file=sys.stderr)
@@ -369,8 +421,10 @@ def main() -> int:
 
     print(
         'PASS: validated '
-        f'{len(discovered_packages)} ROS manifests, Python entry points/import dependencies, '
-        'Unitree SDK architecture assets, and installed launch/RViz resource paths.'
+        f'{len(discovered_ros_packages)} ROS manifests, '
+        f'{len(discovered_source_packages)} source packages, Python entry points/import dependencies, '
+        'Humble build-script defaults, Unitree SDK architecture/install assets, '
+        'and installed launch/RViz resource paths.'
     )
     return 0
 

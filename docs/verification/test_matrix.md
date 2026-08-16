@@ -8,29 +8,37 @@ Allowed initial status is **Not Run**. Later results should use explicit terms s
 
 ## Phase 1 target-Pi acceptance procedure
 
-Run this procedure on a fresh supported Raspberry Pi image. It verifies build, install, test, and package discovery only; it does not require any hardware node to connect to a device.
+Run this procedure on a freshly imaged Raspberry Pi 4 with Ubuntu 22.04 LTS ARM64 and ROS 2 Humble installed using the official ROS instructions. Replace both placeholders before testing. It verifies dependency resolution, build, install, tests, and package discovery only; it must not start a LiDAR, serial, motor, Ethernet-configuration, or autonomous process.
 
 ```bash
+sudo apt update
+sudo apt install -y git python3-colcon-common-extensions python3-rosdep
+test -e /etc/ros/rosdep/sources.list.d/20-default.list || sudo rosdep init
+
 git clone <repository-url>
 cd sensor-fusion-ugv
+git checkout <exact-phase-1-commit>
 
 uname -a
 uname -m
-lsb_release -a || cat /etc/os-release
-source /opt/ros/jazzy/setup.bash
+cat /proc/device-tree/model
+cat /etc/os-release
+python3 --version
+source /opt/ros/humble/setup.bash
 printenv ROS_DISTRO
+git rev-parse HEAD
 
 rosdep update
-rosdep install --from-paths ws/src --ignore-src -r -y
+rosdep install --from-paths ws/src --ignore-src --rosdistro humble -r -y
 
 chmod +x build_ws.sh scripts/verify_build.sh scripts/validate_ros_packages.py
-./build_ws.sh
+./scripts/verify_build.sh
 source ws/install/setup.bash
 
-cd ws
-colcon test
-colcon test-result --verbose
-cd ..
+colcon list --base-paths ws/src
+cat ws/build/unitree_lidar_ros2/unitree_sdk_library.txt
+test "$(cat ws/build/unitree_lidar_ros2/unitree_sdk_library.txt)" = \
+  "${PWD}/ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a"
 
 ros2 pkg executables esp_bridge
 ros2 pkg executables esp_fusion_pkg
@@ -42,19 +50,50 @@ ros2 pkg executables ultrasonic_pkg
 ros2 pkg executables unitree_lidar_ros2
 ros2 pkg executables vfh_pkg
 ros2 pkg executables vision_uart_pkg
+
+bash --noprofile --norc -c \
+  'source /opt/ros/humble/setup.bash && source ws/install/setup.bash && ros2 pkg executables unitree_lidar_ros2 && ros2 pkg executables vision_uart_pkg'
+
+git status --short
+sudo reboot
+```
+
+After the Pi reconnects, repeat the critical verification without relying on `.bashrc` state:
+
+```bash
+cd sensor-fusion-ugv
+git rev-parse HEAD
+./scripts/verify_build.sh
+source /opt/ros/humble/setup.bash
+source ws/install/setup.bash
+ros2 pkg executables unitree_lidar_ros2
+ros2 pkg executables vision_uart_pkg
+git status --short
 ```
 
 Record the clone commit, environment inventory, rosdep output, build/test summaries, executable output, and the Unitree link result. The SDK link must resolve the checked-in `ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a` without a source edit.
 
+The recovered legacy value `ROS_DOMAIN_ID=10` is not needed for these build/discovery checks and must not be added to `.bashrc` by this procedure.
+
+## Phase 1 evidence boundaries
+
+| Evidence class | What it can establish | Current status |
+|---|---|---|
+| Static validation on macOS | Manifest/import/CMake/script consistency, archive format/architecture inspection, and clean missing-Humble diagnostics. | Pass for the recorded commands only; cannot prove ROS or target linkage. |
+| Target ARM64 build validation | Rosdep resolution, all eleven packages discovered by colcon, clean compile/link/install, tests, and executable discovery on the supported baseline. | Not Run on the corrected branch. |
+| Runtime dependency validation | Availability of later legacy/manual/visualization packages and ROS graph/runtime behavior when explicitly installed and launched. | Not Run; not a Phase 1 build prerequisite. |
+| Hardware validation | LiDAR, serial, motors, networking, safety, and autonomy behavior. | Deferred to later phases; no Phase 1 pass is claimed. |
+
 | ID | Subsystem | Requirement / claim | Phase | Verification method | Automated or hardware | Expected evidence | Status | Commit/tag | Notes |
 |---|---|---|---:|---|---|---|---|---|---|
-| BUILD-001 | Dependency resolution | A fresh target-Pi clone resolves all declared workspace dependencies through the documented rosdep procedure. | 1 | Run `rosdep update` and `rosdep install --from-paths ws/src --ignore-src -r -y` on a clean supported Pi image. | Deployment + automated | Environment inventory, clone commit, and complete rosdep transcript. | Not Run | — | Must not use undeclared developer-machine or global-pip state. |
-| BUILD-002 | Clean build | The intended workspace builds on Ubuntu 24.04 / ROS 2 Jazzy / Linux `aarch64`. | 1 | Run `./build_ws.sh` after BUILD-001 on the fresh target Pi. | Automated on target | Colcon build summary and compiler/linker output. | Not Run | — | macOS static checks do not pass this target claim. |
+| BUILD-001 | Dependency resolution | A fresh target-Pi clone resolves all declared workspace dependencies through the documented rosdep procedure. | 1 | Run `rosdep update` and `rosdep install --from-paths ws/src --ignore-src --rosdistro humble -r -y` on a clean supported Pi image. | Deployment + automated | Environment inventory, clone commit, and complete rosdep transcript. | Not Run | — | Must not use undeclared developer-machine or global-pip state. |
+| BUILD-002 | Clean build | The intended workspace builds on Raspberry Pi 4 / Ubuntu 22.04 / ROS 2 Humble / Linux `aarch64` / Python 3.10. | 1 | Run `./scripts/verify_build.sh` after BUILD-001 on the fresh target Pi; it invokes `./build_ws.sh --clean`. | Automated on target | Colcon build summary and compiler/linker output. | Not Run | — | The recovered old Pi is historical evidence; macOS static checks do not pass this fresh-clone claim. |
 | BUILD-003 | Workspace tests | Workspace tests complete without build, install, or packaging failures. | 1 | Source `ws/install/setup.bash`, run `colcon test`, then `colcon test-result --verbose`. | Automated on target | Colcon test summary and detailed results. | Not Run | — | Hardware devices need not be connected. |
-| BUILD-004 | Build tooling | Developer build/verification scripts locate the workspace reliably, pass shell/static validation, and fail clearly when Jazzy is unavailable. | 1 | Run `bash -n` on shell tools, run the static validator, and exercise the missing-Jazzy prerequisite path. | Automated static | Phase 1 static-validation artifact and exact command output. | Pass | Pending (uncommitted; base `20f5563`) | Passed on macOS 26.5.1 ARM64; this does not replace BUILD-001 through BUILD-003. |
+| BUILD-004 | Build tooling | Developer build/verification scripts locate the workspace reliably, pass shell/static validation, and fail clearly when Humble is unavailable. | 1 | Run `bash -n` on shell tools, run the static validator, and exercise the missing-Humble prerequisite path. | Automated static | Phase 1 correction static-validation artifact and exact command output. | Pass | Working tree atop `ed47083` | `BUILD-004-R02` passed on macOS; this does not replace BUILD-001 through BUILD-003. |
 | PKG-001 | Installed packages | Every checked-in ROS executable is installed and discoverable through `ros2 pkg executables`. | 1 | Run the executable-discovery commands above or `./scripts/verify_build.sh` after a clean build. | Automated on target | Command output for all expected package/executable pairs. | Not Run | — | No hardware connection is required. |
 | UNITREE-BUILD-001 | Unitree SDK linkage | The Unitree ROS wrapper resolves the checked-in sibling SDK include path and links the matching `aarch64` Linux archive. | 1 | Inspect configuration diagnostics and linker input/output during a clean `aarch64` build. | Automated on target | CMake configuration and link log tied to the vendor archive checksum. | Not Run | — | Static inspection confirms paths and archive architecture; Pi linkage remains pending. |
-| DEP-001 | Dependency metadata | All current runtime Python imports, C++/launch includes, and external serial/PCL requirements are represented in package metadata. | 1 | Run `python3 scripts/validate_ros_packages.py` and perform a direct manifest/source comparison. | Automated static | Static audit output and reviewed manifest diff. | Pass | Pending (uncommitted; base `20f5563`) | Verified against current source; clean rosdep resolution remains BUILD-001. |
+| DEP-001 | Dependency metadata | All current runtime Python imports, C++/launch includes, and external serial/PCL requirements are represented in package metadata. | 1 | Run `python3 scripts/validate_ros_packages.py` and perform a direct manifest/source comparison. | Automated static | Static audit output and reviewed manifest diff. | Pass | Working tree atop `ed47083` | `DEP-001-R04` verified current source; clean rosdep resolution remains BUILD-001. |
+| DEP-002 | External dependency roles | Recovered external packages are explicitly separated into build/bootstrap, legacy bring-up, development/manual-test, and optional visualization roles. | 1 | Review the dependency table against source, recovered process evidence, and the clean build procedure; check runtime packages only when their later activity is authorized. | Documentation + later runtime | Reviewed classification and, when applicable, `ros2 pkg prefix`/tool output on the supported Pi. | Pass | Working tree atop `ed47083` | Classification passed as `DEP-002-R01`; fresh-Pi installation/discovery remains Not Run. |
 | LIDAR-001 | Unitree driver | Unitree driver starts successfully and reports initialization failure deterministically. | 2 | Automated failure-path test and physical device startup using approved transport/configuration. | Automated + hardware | Test report, driver logs, model/firmware/transport record. | Not Run | — | Exact model must be confirmed, not inferred from older docs. |
 | LIDAR-002 | Unitree cloud | `/unilidar/cloud` is fresh and contains valid finite point fields at the required operating rate. | 2 | Inspect topic type/rate/age and record a stationary/motion sample. | Hardware | Topic statistics and rosbag/capture tied to sensor configuration. | Not Run | — | Acceptance bounds must be specified before test. |
 | TF-001 | TF | Unitree sensor frames are connected to `base_link` with measured transform and valid orientation/timestamps. | 2 | TF graph inspection, quaternion checks, static placement checks, and measured extrinsic review. | Automated + hardware | TF graph, test output, measurement worksheet, configuration. | Not Run | — | Current repository trees are disconnected. |

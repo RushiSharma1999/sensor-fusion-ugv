@@ -1,0 +1,134 @@
+# Phase 1 Humble-baseline correction: static verification artifact
+
+Date: 2026-08-15T19:47:16-07:00
+Branch: fix/01-reproducible-pi-build
+HEAD: ed470839f0aa84e57da4edc2d91ef9930f92645d
+Tested state: uncommitted correction working tree on the HEAD above
+
+## Purpose
+
+This artifact records the checks available after correcting the active Phase 1 target from an unverified Ubuntu 24.04 / ROS 2 Jazzy assumption to the recovered Raspberry Pi 4 / Ubuntu 22.04 Jammy / ROS 2 Humble compatibility baseline.
+
+The earlier `phase1_static_validation_2026-08-13.txt` transcript remains historical Jazzy-targeted evidence. It was not rewritten as a Humble test.
+
+## Available environment
+
+```text
+uname -a:
+Darwin MacBookPro.lan 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:38:56 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T6000 arm64
+
+uname -m:
+arm64
+
+sw_vers:
+ProductName: macOS
+ProductVersion: 26.5.1
+BuildVersion: 25F80
+
+python3 --version: Python 3.13.7
+/usr/bin/python3 --version: Python 3.9.6
+ros2: not found
+colcon: not found
+rosdep: not found
+cmake: not found
+shellcheck: not found
+/opt/ros/humble/setup.bash: absent
+```
+
+This is not Ubuntu, Linux `aarch64`, ROS 2 Humble, Python 3.10, or a Raspberry Pi. It cannot execute rosdep, colcon, ROS package discovery, CMake configuration/linking, or hardware tests.
+
+## Passed source and metadata checks
+
+```text
+$ python3 scripts/validate_ros_packages.py
+PASS: validated 10 ROS manifests, 11 source packages, Python entry points/import dependencies, Humble build-script defaults, Unitree SDK architecture/install assets, and installed launch/RViz resource paths.
+
+$ xmllint --noout ws/src/*/package.xml
+exit 0
+
+$ python3 -m compileall -q scripts ws/src
+exit 0
+
+$ bash -n build_ws.sh
+exit 0
+
+$ bash -n scripts/verify_build.sh
+exit 0
+
+$ bash -n run_lidar.sh
+exit 0
+
+$ git diff --check
+exit 0
+```
+
+Direct review compared Python imports, test imports, C++ includes, CMake `find_package`/target dependencies, Unitree launch imports/actions, all setup.py console entry points, and all ten package manifests. No new manifest defect was found. The nine ament_python packages also returned their manifest-matching names and version 0.0.0 from `/usr/bin/python3 setup.py --name --version` (exit 0 for each).
+
+The static validator also confirms that the active build/verification/run scripts use the Humble setup path and that the recovered eleven-package source set is present. This does not prove colcon can identify or build those packages on Humble.
+
+## Unitree archive and link expectation
+
+```text
+$ objdump -f ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a
+file format elf64-littleaarch64
+architecture: aarch64
+exit 0
+
+$ objdump -f ws/src/unitree_lidar_sdk/lib/x86_64/libunilidar_sdk2.a
+file format elf64-x86-64
+architecture: x86_64
+exit 0
+
+$ shasum -a 256 ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a ws/src/unitree_lidar_sdk/lib/x86_64/libunilidar_sdk2.a
+4e334b67c1a92152c89363d8014a6e361d7bf590e58484d7d6ddc8541389de28  ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a
+a8530545cbd435e3a96b9a099cd57921202aed3d690066f55ea0ade4310212d3  ws/src/unitree_lidar_sdk/lib/x86_64/libunilidar_sdk2.a
+```
+
+Static CMake review confirms the wrapper selects the sibling archive by `CMAKE_SYSTEM_PROCESSOR` and records its absolute path in a generator-independent build provenance file; `scripts/verify_build.sh` requires that file to equal the checked-in ARM64 archive and also inspects `link.txt` when the chosen generator provides it. The plain-CMake SDK package now has install rules for its examples, headers, and selected vendor archive. CMake configuration, ARM64 linking, and target execution were not available here.
+
+## Missing-Humble failure-path checks
+
+From the repository root:
+
+```text
+$ ./build_ws.sh
+Building Sensor Fusion UGV ROS 2 workspace...
+ERROR: ROS 2 Humble was not found at /opt/ros/humble/setup.bash
+Install ROS 2 Humble on Ubuntu 22.04 Jammy before building.
+exit 1 (expected)
+
+$ ./scripts/verify_build.sh
+ERROR: ROS 2 Humble was not found at /opt/ros/humble/setup.bash
+This verification script requires Ubuntu 22.04 Jammy with ROS 2 Humble.
+exit 1 (expected)
+```
+
+The same two scripts were invoked by absolute path from `/private/tmp`; they produced the same expected missing-Humble diagnostics. This statically exercises repository-relative workspace location before any build is possible.
+
+This is a prerequisite failure-path pass only. It is not a successful workspace build or target-Pi result.
+
+## Dependency classification and artifact hygiene
+
+Source/build dependencies remain declared in package manifests and are intended for rosdep. The recovered external packages are documented separately as legacy bring-up (`pointcloud_to_laserscan`), development/manual test (tmux and `teleop_twist_keyboard`), and optional visualization (`foxglove_bridge`) dependencies.
+
+The only tracked generated-data candidates found were:
+
+```text
+data/lidar_data_1773843456.csv  21 bytes, header only
+data/lidar_data_1773843570.csv  21 bytes, header only
+```
+
+They contained no sample rows, were removed in the correction working tree, and `data/lidar_data_*.csv` was added to `.gitignore`. No vendor SDK archive, prebuilt vendor tool, or experimental measurement row was deleted.
+
+## Not run
+
+- Ubuntu 22.04 ARM64 prerequisite installation
+- rosdep initialization/update/install on Jammy
+- `colcon list`, clean build, install, or test
+- Unitree wrapper ARM64 link on the target
+- ROS package/console-executable discovery
+- new-shell or post-reboot target verification
+- external runtime package discovery
+- LiDAR, serial, Ethernet, motor, safety, or autonomous runtime tests
+
+The recovered old Pi proves a historical working Humble environment. A fresh-clone reproducibility pass remains pending until the corrected Phase 1 procedure is run on a clean supported Pi.

@@ -23,6 +23,7 @@ Makefile
 *.log
 *.tmp
 *.swp
+data/lidar_data_*.csv
 
 # ROS bag / large recording files
 *.bag

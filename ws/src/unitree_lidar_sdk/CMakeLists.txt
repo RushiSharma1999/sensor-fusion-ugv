@@ -79,3 +79,15 @@ foreach(target IN LISTS UNITREE_SDK_EXAMPLE_TARGETS)
   target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include")
   target_link_libraries(${target} PRIVATE unitree_lidar_sdk_vendor Threads::Threads)
 endforeach()
+
+install(TARGETS ${UNITREE_SDK_EXAMPLE_TARGETS}
+  RUNTIME DESTINATION bin
+)
+
+install(DIRECTORY include/
+  DESTINATION include
+)
+
+install(FILES "${UNITREE_SDK_LIBRARY}"
+  DESTINATION lib
+)

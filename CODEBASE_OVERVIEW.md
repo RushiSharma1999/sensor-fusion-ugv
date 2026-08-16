@@ -1,10 +1,10 @@
 # Codebase Overview
 
-This repository contains the ROS 2 workspace for a Sensor Fusion-Based Autonomous UGV. Based on the code, the project is intended to run on a Raspberry Pi or another Ubuntu 24.04 machine with ROS 2 Jazzy, and to combine several sensor streams for small unmanned ground vehicle navigation.
+This repository contains the ROS 2 workspace for a Sensor Fusion-Based Autonomous UGV. The active Phase 1 compatibility baseline is Raspberry Pi 4, Ubuntu 22.04 LTS Jammy, Linux `aarch64`, ROS 2 Humble, and Python 3.10. Raspberry Pi 5 and ROS 2 Jazzy are unverified; see `docs/decisions/ADR-002-supported-platform.md`.
 
 The system appears to support:
 
-- A Unitree LiDAR L2, through `ws/src/unitree_lidar_ros2` and the vendored SDK in `ws/src/unitree_lidar_sdk`.
+- A Unitree LiDAR of unconfirmed model, through `ws/src/unitree_lidar_ros2` and the vendored SDK in `ws/src/unitree_lidar_sdk`.
 - An ESP32 or similar microcontroller connected over serial, through `ws/src/esp_bridge`.
 - Ultrasonic distance sensors reported by the ESP serial protocol.
 - A front ToF sensor summary reported by the ESP serial protocol.
@@ -67,8 +67,6 @@ sensor-fusion-ugv/
 |-- .vscode/
 |   `-- settings.json
 |-- data/
-|   |-- lidar_data_1773843456.csv
-|   `-- lidar_data_1773843570.csv
 |-- docs/
 |   `-- images/
 |-- scripts/
@@ -90,15 +88,15 @@ sensor-fusion-ugv/
 
 Major folders and files:
 
-- `README.md`: Short project README with package list, ROS 2 Jazzy requirement, build instructions, and LiDAR run instructions.
+- `README.md`: Project overview, Humble/Jammy compatibility baseline, dependency categories, build verification, and runtime boundaries.
 - `github_beginner_guide.md`: Beginner-facing GitHub Desktop workflow guide. It is documentation for team collaboration, not robot runtime logic.
-- `build_ws.sh`: Root build helper. It enters `ws/`, sources `/opt/ros/jazzy/setup.bash`, optionally runs `rosdep`, and runs `colcon build --symlink-install`.
-- `run_lidar.sh`: Root run helper. It enters `ws/`, sources ROS 2 Jazzy and the local install setup file, then runs `ros2 launch unitree_lidar_ros2 launch.py`.
+- `build_ws.sh`: Strict root build helper. It locates `ws/`, sources `/opt/ros/humble/setup.bash`, optionally removes generated colcon directories with `--clean`, and runs `colcon build --symlink-install`. It does not install dependencies.
+- `run_lidar.sh`: Root hardware run helper. It locates `ws/`, sources ROS 2 Humble and the local install setup file, then runs `ros2 launch unitree_lidar_ros2 launch.py`.
 - `.gitignore`: Ignores common macOS, ROS 2 build, Python cache, CMake, log, temporary, rosbag, and generated TF graph files.
 - `.vscode/settings.json`: VS Code CMake setting pointing at `ws/src/unitree_lidar_ros2`. This file is tracked even though `.gitignore` ignores `.vscode/`.
-- `data/`: Contains two tracked LiDAR CSV logs. Both inspected files currently contain only the header `time,angle,distance`.
+- `data/`: Runtime LiDAR logger output location. Generated `lidar_data_*.csv` files are ignored; the two former header-only placeholders were removed during Phase 1 correction.
 - `docs/images/`: Empty image folder.
-- `scripts/`: Empty helper scripts folder.
+- `scripts/`: Contains static package validation and clean target-build verification helpers.
 - `ws/src/`: ROS 2 source workspace containing Python packages, the Unitree ROS driver, and the Unitree SDK.
 - `ws/src/project_structure.text`: A manually generated tree snapshot of `ws/src/`; useful but should not be treated as authoritative over the actual file tree.
 
@@ -398,7 +396,7 @@ Major folders and files:
 ### `unitree_lidar_sdk`
 
 - Package type: Vendored C++ SDK/library folder. It has `CMakeLists.txt` but no `package.xml`, so it is not a normal ROS 2 package.
-- Main purpose: Provide the Unitree LiDAR L2 SDK API, headers, static libraries, and example utilities.
+- Main purpose: Provide the Unitree LiDAR SDK API, headers, static libraries, and example utilities. The exact deployed LiDAR model is not confirmed by the inspected source.
 - Important files:
   - `ws/src/unitree_lidar_sdk/CMakeLists.txt`
   - `ws/src/unitree_lidar_sdk/README.md`
@@ -532,31 +530,32 @@ Major folders and files:
 - Important logic: Documents that the project integrates LiDAR, ultrasonic sensors, ToF processing, ESP32 serial communication, camera UART data, and obstacle avoidance.
 - Inputs/outputs: Documentation only.
 - Notes for maintainers:
-  - It says the target platform is Raspberry Pi or Ubuntu with ROS 2 Jazzy.
-  - It suggests checking `/scan` and `/cmd_vel`, but the checked-in Unitree driver does not publish `/scan`.
+  - It identifies the recovered Raspberry Pi 4 / Jammy / Humble environment as the Phase 1 compatibility baseline.
+  - It distinguishes build verification from runtime/hardware claims; the checked-in Unitree driver still does not publish `/scan`.
 
 #### `build_ws.sh`
 
 - Purpose: Build helper for the ROS 2 workspace.
 - Important logic:
-  - Uses `set -e`.
+  - Uses `set -euo pipefail`.
   - Enters `ws/` relative to the script location.
-  - Requires `/opt/ros/jazzy/setup.bash`.
-  - Runs `rosdep update` and `rosdep install --from-paths src --ignore-src -r -y` if `rosdep` is available.
+  - Requires `/opt/ros/humble/setup.bash` and rejects a pre-sourced different ROS distribution.
+  - Removes only `ws/build`, `ws/install`, and `ws/log` when explicitly passed `--clean`.
+  - Does not run rosdep or install system packages.
   - Runs `colcon build --symlink-install`.
 - Inputs/outputs:
-  - Input: ROS 2 Jazzy installation and package sources under `ws/src`.
+  - Input: ROS 2 Humble installation, colcon, and package sources under `ws/src`.
   - Output: `ws/build`, `ws/install`, and `ws/log` generated by colcon.
 - Notes for maintainers:
   - The script is Ubuntu/ROS specific and will not work on a normal macOS environment.
-  - `rosdep update || true` hides update failure but continues.
+  - Dependency preparation is an explicit documented step before this script.
 
 #### `run_lidar.sh`
 
 - Purpose: Run the Unitree LiDAR launch file.
 - Important logic:
   - Enters `ws/`.
-  - Sources `/opt/ros/jazzy/setup.bash`.
+  - Sources `/opt/ros/humble/setup.bash`.
   - Sources `install/setup.bash`.
   - Runs `ros2 launch unitree_lidar_ros2 launch.py`.
 - Inputs/outputs:
@@ -1055,10 +1054,10 @@ From the repository root:
 
 The script:
 
-- Requires `/opt/ros/jazzy/setup.bash`.
-- Enters `ws/`.
-- Runs `rosdep` if available.
-- Runs `colcon build --symlink-install`.
+- Requires `/opt/ros/humble/setup.bash`.
+- Locates `ws/` relative to the repository.
+- Optionally removes only generated colcon directories with `--clean`.
+- Runs `colcon build --symlink-install` without installing dependencies.
 
 After building, source the workspace:
 
@@ -1069,7 +1068,7 @@ source ws/install/setup.bash
 ### Manual build path from `README.md`
 
 ```bash
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/humble/setup.bash
 cd ws
 colcon build --symlink-install
 source install/setup.bash
@@ -1262,7 +1261,7 @@ Unclear from code:
 | Package/File                                   | Purpose                                | Main inputs                                                           | Main outputs                                                               | Hardware dependency             | Suggested improvements                                    |
 | ---------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------- | --------------------------------------------------------- |
 | `README.md`                                    | Top-level intro and build notes        | None                                                                  | Human-readable setup docs                                                  | None                            | Mention missing `/scan` conversion and full bringup path  |
-| `build_ws.sh`                                  | Build ROS workspace                    | ROS 2 Jazzy, `ws/src`                                                 | Colcon build/install/log folders                                           | Ubuntu/ROS environment          | Add clearer failure handling and optional no-rosdep flag  |
+| `build_ws.sh`                                  | Build ROS workspace                    | ROS 2 Humble, colcon, `ws/src`                                       | Colcon build/install/log folders                                           | Ubuntu/ROS environment          | Validate on a clean supported Pi                          |
 | `run_lidar.sh`                                 | Run Unitree LiDAR launch               | Built workspace                                                       | LiDAR node and RViz                                                        | Unitree LiDAR                   | Add headless option through launch arguments              |
 | `github_beginner_guide.md`                     | GitHub onboarding                      | None                                                                  | Team workflow instructions                                                 | None                            | Keep in sync with README build commands                   |
 | `.vscode/settings.json`                        | VS Code CMake path                     | Local path                                                            | Editor config                                                              | None                            | Remove user-specific absolute path                        |
@@ -1274,8 +1273,8 @@ Unclear from code:
 | `lidar_logger_pkg`                             | Log front scan slice to CSV            | `/scan`                                                               | CSV file                                                                   | LiDAR scan source               | Parameterize output path/window and declare dependencies  |
 | `tof_processor_pkg`                            | ToF floor/dropoff feature extraction   | `/tof/front/summary`                                                  | `/tof/features`                                                            | ESP ToF telemetry               | Document units, add stale timeout and calibration service |
 | `ultrasonic_pkg`                               | Ultrasonic hazard extraction           | `/esp/ultrasonic_raw`                                                 | `/ultrasonic/features`                                                     | ESP ultrasonic telemetry        | Use validity flags, consider rear sensor, typed messages  |
-| `unitree_lidar_ros2`                           | ROS wrapper for Unitree LiDAR SDK      | Unitree serial/UDP packets                                            | `unilidar/cloud`, `unilidar/imu`, TF                                       | Unitree LiDAR L2                | Fix SDK paths, optional RViz, add `/scan` conversion      |
-| `unitree_lidar_sdk`                            | Vendored Unitree SDK                   | LiDAR serial/UDP                                                      | SDK point cloud and IMU data                                               | Unitree LiDAR L2                | Make a proper vendor package and document binaries        |
+| `unitree_lidar_ros2`                           | ROS wrapper for Unitree LiDAR SDK      | Unitree serial/UDP packets                                            | `unilidar/cloud`, `unilidar/imu`, TF                                       | Unitree LiDAR; model unconfirmed | Validate initialization, optional RViz, add `/scan` later |
+| `unitree_lidar_sdk`                            | Vendored Unitree SDK                   | LiDAR serial/UDP                                                      | SDK point cloud and IMU data                                               | Unitree LiDAR; model unconfirmed | Validate the checked-in binaries on the supported target  |
 | `vfh_pkg`                                      | VFH navigation with fusion penalties   | `/scan`, `/fusion/*`                                                  | `/cmd_vel_vfh`                                                             | LiDAR scan source               | Clarify critical-stop behavior, stale fusion handling     |
 | `vision_uart_pkg/vision_uart_receiver_node.py` | Parse camera UART data                 | UART serial lines                                                     | `/vision/*` topics                                                         | Camera/vision UART source       | Add reconnect and protocol spec                           |
 | `vision_uart_pkg/camera_follow_node.py`        | Generate camera-follow commands        | `/vision/*` topics                                                    | `/cmd_vel_camera`, debug                                                   | Camera/vision topic source      | Move tuning to YAML and verify angle sign convention      |

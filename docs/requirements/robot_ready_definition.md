@@ -14,6 +14,8 @@ The first release does not depend on SLAM, Nav2, mapping, global planning, waypo
 
 A target Raspberry Pi can start from a fresh clone at a recorded commit, follow versioned instructions to install all declared host dependencies, and build and test the ROS 2 workspace without undocumented files or developer-machine state.
 
+For Phase 1, the supported compatibility baseline is Raspberry Pi 4, Ubuntu 22.04 LTS Jammy, Linux `aarch64`, ROS 2 Humble, and Python 3.10, as decided in [`../decisions/ADR-002-supported-platform.md`](../decisions/ADR-002-supported-platform.md). Pi 5 and ROS 2 Jazzy remain unverified rather than assumed compatible.
+
 ### Robot-ready
 
 The Pi-cloneable software, compatible checked-in MCU firmware, confirmed hardware configuration, final command ownership, safety/fault behavior, and physical stop paths have passed their software, deployment, wheels-raised, and controlled low-speed acceptance gates. “Robot-ready” does not mean every deferred research capability exists.

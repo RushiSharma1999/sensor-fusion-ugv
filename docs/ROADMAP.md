@@ -40,12 +40,12 @@ validation/13-release-candidate
 ## Phase 1 — Reproducible Pi build
 
 - **Branch name:** `fix/01-reproducible-pi-build`
-- **Status:** Implementation complete; target-Pi validation pending.
+- **Status:** Implementation corrected to the recovered Jammy/Humble baseline; clean target-Pi validation pending.
 - **Goal:** Make dependency installation and a clean ROS 2 build reproducible on the supported Raspberry Pi environment.
 - **Primary issues addressed:** Unitree sibling SDK paths; incomplete package manifests; undeclared serial/ROS dependencies; ambiguous target prerequisites.
 - **Codex/software work:** Correct build metadata and dependency declarations, document the supported OS/ROS/architecture, and add clean-build checks without changing autonomy algorithms.
-- **Human/hardware work:** Provide or confirm the target Pi image, architecture, network access policy, and any vendor-library compatibility constraints.
-- **Acceptance gate:** A fresh target-Pi clone can install declared dependencies, build all intended packages, and run applicable automated tests using documented commands.
+- **Human/hardware work:** Run the documented clean-image procedure on the recovered-compatible Raspberry Pi 4 / Ubuntu 22.04 ARM64 / ROS 2 Humble baseline and retain the complete transcript. No sensor or actuator operation is part of this phase.
+- **Acceptance gate:** A fresh supported Pi clone can install declared dependencies, clean-build all intended packages, run applicable automated tests, discover packages/executables in a new shell and after reboot, and confirm the checked-in ARM64 Unitree link input using documented commands.
 - **Expected evidence:** Pi environment inventory, dependency/install logs, colcon build/test summaries, and release-relevant artifacts tied to the commit.
 
 ## Phase 2 — Unitree driver and TF
