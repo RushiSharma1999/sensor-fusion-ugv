@@ -6,30 +6,32 @@ The canonical and planned system boundaries are documented in [`docs/architectur
 
 ## Supported build target
 
-The intended production build environment is:
+The Phase 1 compatibility baseline is:
 
-- Ubuntu 24.04;
-- ROS 2 Jazzy;
-- Linux `aarch64` on the target Raspberry Pi;
-- Python 3, colcon, and rosdep; and
+- Raspberry Pi 4;
+- Ubuntu 22.04 LTS Jammy on Linux `aarch64`;
+- ROS 2 Humble;
+- Python 3.10, colcon, and rosdep; and
 - a C++17 compiler and CMake as supplied by the Ubuntu/ROS build toolchain.
+
+This baseline was recovered from the previous team's physical Raspberry Pi 4. It is the compatibility target to reproduce before considering a separate Ubuntu 24.04 / ROS 2 Jazzy migration. Raspberry Pi 5 and Jazzy compatibility are not verified. See [`docs/decisions/ADR-002-supported-platform.md`](docs/decisions/ADR-002-supported-platform.md) and [`docs/legacy/known_working_pi_baseline.md`](docs/legacy/known_working_pi_baseline.md).
 
 The checked-in Unitree SDK contains Linux static libraries for exactly these processor names:
 
-- `aarch64` — the intended Raspberry Pi target;
-- `x86_64` — a supported Linux development architecture.
+- `aarch64` — the Phase 1 target asset;
+- `x86_64` — a checked-in Linux development asset, not target-Pi evidence.
 
 The Unitree CMake projects reject non-Linux systems and any other processor name with an explicit error. No vendor library is present for 32-bit ARM, `arm64`-named toolchains, or other architectures. Do not add an architecture alias without confirming that the vendor binary ABI is compatible.
 
-The repository has not yet been verified by this phase on the target Raspberry Pi. See [`docs/verification/test_matrix.md`](docs/verification/test_matrix.md) for the pending acceptance procedure.
+The recovered Pi proves a historically working Humble environment. It does not yet prove that a fresh clone of this corrected branch resolves, builds, tests, and remains discoverable after a reboot. See [`docs/verification/test_matrix.md`](docs/verification/test_matrix.md) for that pending acceptance procedure.
 
 ## Build prerequisites
 
-Install ROS 2 Jazzy for Ubuntu 24.04 using the official ROS instructions. The following tools must also be available:
+Start with Ubuntu 22.04 on ARM64 and install ROS 2 Humble using the [official ROS 2 Humble Ubuntu instructions](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debs.html). Then install the repository/bootstrap tools:
 
 ```bash
 sudo apt update
-sudo apt install python3-colcon-common-extensions python3-rosdep
+sudo apt install -y git python3-colcon-common-extensions python3-rosdep
 ```
 
 Initialize rosdep once on a new operating-system installation if it has not already been initialized:
@@ -37,6 +39,8 @@ Initialize rosdep once on a new operating-system installation if it has not alre
 ```bash
 sudo rosdep init
 ```
+
+If `/etc/ros/rosdep/sources.list.d/20-default.list` already exists, do not initialize rosdep again. Every user who builds should still run `rosdep update`.
 
 The package manifests declare the source-level dependencies used by the workspace. In particular:
 
@@ -47,27 +51,50 @@ The package manifests declare the source-level dependencies used by the workspac
 
 Use rosdep to resolve those declarations. Do not substitute undocumented global `pip` installs for the declared Ubuntu/ROS dependencies.
 
+## Dependency classification
+
+| Dependency | Classification | Phase 1 treatment |
+|---|---|---|
+| ROS/C++/Python dependencies declared in `package.xml`, including `python3-serial`, PCL, messages, TF2, launch, and RViz | Required for source-package build and installed package runtime | Resolved by rosdep from `ws/src`; no global pip install. |
+| Checked-in Unitree headers and `lib/aarch64/libunilidar_sdk2.a` | Required for the Unitree source build and core LiDAR runtime | Version controlled; the target link path is checked by `scripts/verify_build.sh`. |
+| `python3-colcon-common-extensions`, `python3-rosdep`, and `git` | Required build/bootstrap tools | Installed explicitly with apt before rosdep/build. |
+| `pointcloud_to_laserscan` | Recovered legacy robot bring-up dependency | Not required to compile Phase 1. Production projection/configuration remains planned for Phase 3. |
+| `tmux` | Recovered legacy bring-up/process-management tool | Optional for development; not used by the Phase 1 build or verification scripts. |
+| `teleop_twist_keyboard` | Development/manual-test dependency | Optional and not used during Phase 1 acceptance. |
+| `foxglove_bridge` | Optional visualization/telemetry dependency | Optional and not used during Phase 1 acceptance. |
+
+On Humble, install a later test or legacy tool only for the corresponding explicitly reviewed activity:
+
+```bash
+sudo apt install -y ros-humble-pointcloud-to-laserscan
+sudo apt install -y ros-humble-teleop-twist-keyboard tmux
+sudo apt install -y ros-humble-foxglove-bridge
+```
+
+These commands are deliberately separate from the required build prerequisites.
+
 ## Fresh-clone build procedure
 
 ```bash
 git clone <repository-url>
 cd sensor-fusion-ugv
+git checkout <phase-1-commit>
 
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/humble/setup.bash
 rosdep update
-rosdep install --from-paths ws/src --ignore-src -r -y
+rosdep install --from-paths ws/src --ignore-src --rosdistro humble -r -y
 
-./build_ws.sh
+./build_ws.sh --clean
 source ws/install/setup.bash
 ```
 
-`build_ws.sh` finds `ws` relative to its own location, requires ROS 2 Jazzy and colcon, and runs:
+`build_ws.sh` finds `ws` relative to its own location, requires ROS 2 Humble and colcon, and runs:
 
 ```bash
 colcon build --symlink-install
 ```
 
-It intentionally does not run rosdep or install system software. Dependency installation remains an explicit, reviewable step. Additional colcon arguments may be passed through, for example:
+It intentionally does not run rosdep or install system software. Dependency installation remains an explicit, reviewable step. `--clean` removes only `ws/build`, `ws/install`, and `ws/log` before the build. Additional colcon arguments may be passed through, for example:
 
 ```bash
 ./build_ws.sh --packages-select fusion_pkg
@@ -75,13 +102,13 @@ It intentionally does not run rosdep or install system software. Dependency inst
 
 ## Build and package verification
 
-On Ubuntu 24.04 with ROS 2 Jazzy and dependencies already installed, run:
+On the supported Ubuntu 22.04 ARM64 / ROS 2 Humble target with dependencies already installed, run:
 
 ```bash
 ./scripts/verify_build.sh
 ```
 
-The script performs the static package audit, builds the workspace, runs `colcon test`, reports test results, and confirms all checked-in ROS console executables are discoverable. It does not open hardware devices or start any robot node.
+The script checks the supported OS, architecture, Python, and ROS distribution; confirms all eleven source packages are visible to colcon; performs the static package audit; makes a clean build; checks that the Unitree wrapper link command references the checked-in ARM64 archive; runs `colcon test`; reports test results; and confirms all checked-in ROS console executables are discoverable. It does not open hardware devices or start any robot node.
 
 The ROS-independent static audit can also run on a development host without ROS:
 
@@ -136,11 +163,13 @@ sensor-fusion-ugv/
         └── vision_uart_pkg/
 ```
 
-`ws/build`, `ws/install`, and `ws/log` are generated by colcon and are ignored by Git.
+`ws/build`, `ws/install`, and `ws/log` are generated by colcon and are ignored by Git. `data/lidar_data_*.csv` logger outputs are also ignored; preserve valuable experiment data in an approved evidence location before cleaning a worktree.
 
 ## Runtime hardware requirements
 
 Runtime nodes require their configured LiDAR, serial, UART, and sensor interfaces. Those devices are not required for Phase 1 build/install verification, and this README does not assert that their models, ports, network configuration, transforms, or behavior have been confirmed.
+
+The recovered runtime used `ROS_DOMAIN_ID=10`. That value is historical runtime configuration, not a compilation prerequisite, and Phase 1 does not modify a user's global shell startup files.
 
 After a successful build, `./run_lidar.sh` launches the Unitree ROS wrapper and RViz using the installed `launch/launch.py` and `rviz/view.rviz` resources. It requires the separately configured LiDAR connection. The current Unitree wrapper publishes `PointCloud2` and IMU data; it does not provide the planned robot-centric `/scan` integration.
 

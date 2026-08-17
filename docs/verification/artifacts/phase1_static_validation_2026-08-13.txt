@@ -1,5 +1,7 @@
 # Phase 1 static verification artifact
 
+Supersession note added 2026-08-15: this is preserved historical evidence of the earlier macOS/Jazzy-targeted Phase 1 attempt. The active compatibility baseline is now Ubuntu 22.04 Jammy / ROS 2 Humble under ADR-002. The original environment, commands, output, and conclusions below have not been relabeled as Humble verification.
+
 Date: 2026-08-13T22:08:44-07:00
 Branch: fix/01-reproducible-pi-build
 Commit: Pending (uncommitted changes based on 20f5563)

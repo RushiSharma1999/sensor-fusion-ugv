@@ -1,5 +1,7 @@
 # Sensor-Fusion UGV: Codebase Deep Dive
 
+> Phase 1 recheck (2026-08-15): this document preserves the detailed static analysis of the pre-Phase-1 source. Its original Jazzy build-target statements, Unitree path defect, and manifest-gap findings are historical and superseded by the current source, `README.md`, and `docs/decisions/ADR-002-supported-platform.md`. **Verified from code** the current scripts select Humble, the Unitree SDK is a sibling path, and the previously identified manifest dependencies are declared. Target-Pi build/runtime results remain pending.
+
 This document is a second-pass, implementation-first analysis of the repository as it exists currently, with emphasis on `ws/src`. It is both a technical reference and a learning guide. Source code is treated as authoritative; names, comments, and older documentation are not accepted as proof of behavior.
 
 Evidence labels used throughout:
@@ -43,7 +45,7 @@ The code therefore represents a collection of connected core modules plus altern
 
 ## Five-minute architecture summary
 
-**Verified from code:** The host side is designed for ROS 2. `README.md` and `build_ws.sh` target Ubuntu 24.04 and ROS 2 Jazzy, and the README names a Raspberry Pi as a target host. A Unitree SDK can receive LiDAR packets over UDP or high-speed serial. The ROS wrapper converts those packets into a 3D point cloud, IMU messages, and two TF transforms.
+**Verified from code** — historical, superseded platform observation: At the time of the original analysis, `README.md` and `build_ws.sh` targeted Ubuntu 24.04 and ROS 2 Jazzy. Current Phase 1 source instead targets the recovered Raspberry Pi 4 / Ubuntu 22.04 / ROS 2 Humble baseline. A Unitree SDK can receive LiDAR packets over UDP or high-speed serial. The ROS wrapper converts those packets into a 3D point cloud, IMU messages, and two TF transforms.
 
 An ESP-connected bridge has two jobs. It sends the latest planar ROS velocity command as an ASCII serial line 30 times per second, forcing zero after 0.25 seconds without a new command. In the other direction it parses odometry, a front ToF summary, and four named ultrasonic readings. ROS processors convert the ToF and front/left/right ultrasonic summaries into dimensionless hazards. `fusion_node` turns those hazards into a 33-sector penalty array, a critical-stop Boolean, and a 0-to-1 speed multiplier.
 
@@ -1293,11 +1295,11 @@ Severity is an engineering assessment of the checked-in host code, not a claim a
 
 Every Python `setup.py` has only `setuptools` in `install_requires`; none installs pyserial. Common `setup.cfg` files correctly direct console scripts to `lib/<package>`.
 
-## Build and run procedure
+## Historical build and run procedure (superseded)
 
 ### What the repository intends
 
-On Ubuntu 24.04 with ROS 2 Jazzy:
+The original analysis recorded an Ubuntu 24.04 / ROS 2 Jazzy target:
 
 ```bash
 cd sensor-fusion-ugv
@@ -1306,9 +1308,9 @@ chmod +x build_ws.sh run_lidar.sh
 source ws/install/setup.bash
 ```
 
-`build_ws.sh` enters `ws`, sources `/opt/ros/jazzy/setup.bash`, runs `rosdep update || true`, runs `rosdep install --from-paths src --ignore-src -r -y`, and then `colcon build --symlink-install`. Because `set -e` is active, dependency-install or build failures stop the script; only `rosdep update` failure is explicitly ignored.
+The historical `build_ws.sh` entered `ws`, sourced `/opt/ros/jazzy/setup.bash`, ran `rosdep update || true`, ran `rosdep install --from-paths src --ignore-src -r -y`, and then ran `colcon build --symlink-install`. The current script uses Humble, keeps dependency installation separate, and supports an explicit clean build.
 
-**Static verification warning:** the Unitree CMake path defect must be resolved before expecting a complete build. Incomplete manifests may also leave imports unavailable. The current environment is macOS arm64 without `/opt/ros/jazzy`, so a ROS/hardware build was not attempted; Python syntax, package XML parsing, and shell syntax were checked separately.
+**Historical static verification warning (superseded by Phase 1 source changes):** the original Unitree CMake path and manifest defects needed correction. The original macOS analysis environment lacked `/opt/ros/jazzy`; no ROS/hardware build was attempted. The corrected Humble target still requires the clean-Pi acceptance procedure before build success can be claimed.
 
 The LiDAR helper is:
 

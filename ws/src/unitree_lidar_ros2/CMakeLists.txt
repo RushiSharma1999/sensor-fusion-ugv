@@ -69,6 +69,11 @@ set_target_properties(unitree_lidar_sdk PROPERTIES
   IMPORTED_LOCATION "${UNITREE_SDK_LIBRARY}"
   INTERFACE_INCLUDE_DIRECTORIES "${UNITREE_SDK_INCLUDE_DIR}"
 )
+message(STATUS "Unitree SDK library: ${UNITREE_SDK_LIBRARY}")
+file(WRITE
+  "${CMAKE_CURRENT_BINARY_DIR}/unitree_sdk_library.txt"
+  "${UNITREE_SDK_LIBRARY}\n"
+)
 
 add_definitions(${PCL_DEFINITIONS})
 

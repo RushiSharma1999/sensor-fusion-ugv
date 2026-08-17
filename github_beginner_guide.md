@@ -428,18 +428,18 @@ Before clicking **Push origin**, check:
 
 ## 19. How to Run the Code on the Raspberry Pi
 
-The code should be built and run on the Raspberry Pi or another Ubuntu machine with ROS 2 Jazzy installed.
+The Phase 1 compatibility baseline is Raspberry Pi 4 with Ubuntu 22.04 ARM64 and ROS 2 Humble. Follow the root `README.md` to install prerequisites and resolve rosdep dependencies before building. Pi 5 and ROS 2 Jazzy remain unverified.
 
 After cloning the repository on the Pi:
 
 ```bash
 cd sensor-fusion-ugv
 chmod +x build_ws.sh run_lidar.sh
-./build_ws.sh
+./build_ws.sh --clean
 source ws/install/setup.bash
 ```
 
-To run the LiDAR launch script:
+`run_lidar.sh` starts the Unitree driver and RViz and therefore is not part of Phase 1 build verification. Run it only after the LiDAR connection and configuration have been reviewed:
 
 ```bash
 ./run_lidar.sh
@@ -450,7 +450,7 @@ Useful ROS 2 checks:
 ```bash
 ros2 topic list
 ros2 node list
-ros2 topic echo /scan
+ros2 topic echo /unilidar/cloud
 ```
 
 ---
