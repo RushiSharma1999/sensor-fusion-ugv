@@ -6,6 +6,7 @@
 build/
 install/
 log/
+ws/.phase2-verification/
 
 # Python
 __pycache__/
@@ -21,6 +22,7 @@ Makefile
 
 # Logs and temporary files
 *.log
+!docs/verification/artifacts/*.log
 *.tmp
 *.swp
 data/lidar_data_*.csv

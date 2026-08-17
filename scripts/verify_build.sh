@@ -6,6 +6,14 @@ REPOSITORY_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 WORKSPACE_DIR="${REPOSITORY_ROOT}/ws"
 UGV_ROS_DISTRO="humble"
 UGV_ROS_SETUP="/opt/ros/${UGV_ROS_DISTRO}/setup.bash"
+UGV_SETUP_HELPER="${SCRIPT_DIR}/lib/source_setup.bash"
+
+if [[ ! -f "${UGV_SETUP_HELPER}" ]]; then
+    echo "ERROR: Setup-source helper not found: ${UGV_SETUP_HELPER}" >&2
+    exit 1
+fi
+source "${UGV_SETUP_HELPER}"
+"${SCRIPT_DIR}/test_source_setup.sh"
 
 if [[ ! -f "${UGV_ROS_SETUP}" ]]; then
     echo "ERROR: ROS 2 Humble was not found at ${UGV_ROS_SETUP}" >&2
@@ -18,7 +26,7 @@ if [[ -n "${ROS_DISTRO:-}" && "${ROS_DISTRO}" != "${UGV_ROS_DISTRO}" ]]; then
     echo "Open a clean shell before running this script; do not mix ROS distributions." >&2
     exit 1
 fi
-source "${UGV_ROS_SETUP}"
+source_setup_file "${UGV_ROS_SETUP}"
 
 if [[ "${ROS_DISTRO:-}" != "${UGV_ROS_DISTRO}" ]]; then
     echo "ERROR: Sourcing ${UGV_ROS_SETUP} did not select ROS 2 Humble." >&2
@@ -53,6 +61,7 @@ if [[ "${UGV_PYTHON_VERSION}" != "3.10" ]]; then
 fi
 
 python3 "${SCRIPT_DIR}/validate_ros_packages.py"
+python3 "${SCRIPT_DIR}/validate_unitree_driver.py"
 
 UGV_DISCOVERED_PACKAGES="$(colcon list --base-paths "${WORKSPACE_DIR}/src" --names-only)"
 while read -r UGV_EXPECTED_PACKAGE; do
@@ -91,7 +100,19 @@ if [[ -f "${UGV_UNITREE_LINK_COMMAND}" ]] \
     exit 1
 fi
 
-source "${WORKSPACE_DIR}/install/setup.bash"
+source_setup_file "${WORKSPACE_DIR}/install/setup.bash"
+
+UGV_UNITREE_SHARE="$(ros2 pkg prefix --share unitree_lidar_ros2)"
+for UGV_UNITREE_RESOURCE in \
+    launch/launch.py \
+    config/driver.defaults.yaml \
+    rviz/view.rviz; do
+    if [[ ! -f "${UGV_UNITREE_SHARE}/${UGV_UNITREE_RESOURCE}" ]]; then
+        echo "ERROR: Installed Unitree resource is missing: ${UGV_UNITREE_SHARE}/${UGV_UNITREE_RESOURCE}" >&2
+        exit 1
+    fi
+done
+ros2 launch unitree_lidar_ros2 launch.py --show-args >/dev/null
 
 cd "${WORKSPACE_DIR}"
 if ! colcon test; then

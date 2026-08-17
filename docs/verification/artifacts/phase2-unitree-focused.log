@@ -1,0 +1,51 @@
+Phase 2 Raspberry Pi focused Unitree verifier (sanitized evidence summary)
+Date: 2026-08-17; exact run time was not supplied
+Source: operator-reported result from ./scripts/verify_unitree_phase2.sh
+Repository state: uncommitted Phase 2 working tree atop 664bd9fd3e346b681d7b4b48e683936cdc79bfa3
+
+Environment reported by the operator:
+- Raspberry Pi 4
+- Ubuntu 22.04.5 Jammy
+- Linux aarch64
+- Python 3.10.12
+- ROS 2 Humble
+- isolated shell with no inherited ROS workspace environment
+- no robot, LiDAR, serial, motor, or tmux processes running
+
+Command:
+./scripts/verify_unitree_phase2.sh
+
+Reported result:
+PHASE2_FOCUSED_STATUS=0
+
+Passed stages:
+- setup-file nounset regression
+- Unitree static contract validation
+- Humble/Jammy/Linux-aarch64/Python-3.10 prerequisites
+- clean focused unitree_lidar_ros2 build
+- checked-in aarch64 Unitree archive selection and link input
+- installed launch/config/RViz resources
+- ros2 launch unitree_lidar_ros2 launch.py --show-args
+- installed unitree_lidar_ros2 executable discovery
+- initialize_type:=0 rejection before SDK initialization
+
+Test result boundary:
+- colcon test for unitree_lidar_ros2 completed successfully
+- zero tests were discovered
+- this is not evidence of Unitree unit-test coverage
+
+Unchanged external gate:
+The strict full-workspace test gate still fails on inherited Flake8/PEP257
+debt in eight non-Unitree Python packages. The focused pass does not suppress,
+skip, or supersede that failure.
+
+Hardware boundary:
+No physical LiDAR or robot hardware was started. This result does not verify
+the physical model or firmware, transport, sensor data or rate, timestamp
+behavior, TF physical semantics, shutdown, reconnect, RViz display, or reboot
+behavior. Fresh-image Phase 1 reproducibility also remains pending.
+
+Sanitization note:
+This repository artifact retains only the environment, command, status, and
+stage outcomes supplied by the operator. Unavailable line-by-line output is
+not reproduced or invented.

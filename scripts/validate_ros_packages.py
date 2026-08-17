@@ -249,6 +249,7 @@ def validate_unitree_package(
         'unitree_sdk_library.txt',
         'message(FATAL_ERROR',
         'install(DIRECTORY launch',
+        'install(DIRECTORY config',
         'install(DIRECTORY rviz',
     ):
         require(token in cmake, f'unitree_lidar_ros2: CMake token is missing: {token}')
@@ -278,6 +279,10 @@ def validate_unitree_package(
         require(
             'get_package_share_directory' in launch_text,
             'unitree_lidar_ros2: launch file does not use the ament package share directory',
+        )
+        require(
+            "'config', 'driver.defaults.yaml'" in launch_text,
+            'unitree_lidar_ros2: launch file does not use the installed driver config path',
         )
         require(
             "'rviz', 'view.rviz'" in launch_text,
@@ -340,6 +345,19 @@ def validate_repository_scripts() -> None:
             'lib/aarch64/libunilidar_sdk2.a',
             'unitree_sdk_library.txt',
             'colcon test-result --verbose',
+        ),
+        REPOSITORY_ROOT / 'scripts' / 'verify_unitree_phase2.sh': (
+            '/opt/ros/${UGV_ROS_DISTRO}/setup.bash',
+            'UGV_ROS_DISTRO="humble"',
+            'UGV_PHASE2_OUTPUT_DIR',
+            'colcon --log-base',
+            '--packages-select "${UGV_UNITREE_PACKAGE}"',
+            'lib/aarch64/libunilidar_sdk2.a',
+            'unitree_sdk_library.txt',
+            'colcon test-result',
+            'ros2 pkg executables',
+            'initialize_type:=0',
+            'launch.py --show-args',
         ),
         REPOSITORY_ROOT / 'run_lidar.sh': (
             '/opt/ros/${UGV_ROS_DISTRO}/setup.bash',
@@ -424,7 +442,7 @@ def main() -> int:
         f'{len(discovered_ros_packages)} ROS manifests, '
         f'{len(discovered_source_packages)} source packages, Python entry points/import dependencies, '
         'Humble build-script defaults, Unitree SDK architecture/install assets, '
-        'and installed launch/RViz resource paths.'
+        'and installed launch/config/RViz resource paths.'
     )
     return 0
 

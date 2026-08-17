@@ -1,0 +1,283 @@
+# Phase 2 Unitree driver/TF: static and ARM64 build verification artifact
+
+Date: 2026-08-16T19:41:59-07:00
+Focused correction rerun: 2026-08-16T20:29:51-07:00
+First real Humble ARM64 attempt reported: 2026-08-17
+Strict-shell setup correction rerun: 2026-08-17T08:32:51-07:00
+Corrected Raspberry Pi ARM64/Humble rerun reported: 2026-08-17
+Consolidated focused Phase 2 verifier passed: 2026-08-17
+Branch: fix/02-unitree-driver-and-tf
+Base and starting HEAD: 664bd9fd3e346b681d7b4b48e683936cdc79bfa3 (`664bd9f Merge Phase 1 Humble baseline correction`)
+Tested state: uncommitted Phase 2 working tree on the HEAD above
+
+## Purpose
+
+This artifact records the available static validation and the operator-supplied Raspberry Pi ARM64/Humble build evidence for the Phase 2 Unitree ROS wrapper, launch, parameters, work-mode and timestamp restrictions, TF contract, installed resources, and unchanged checked-in SDK archives. It does not record a LiDAR run, network test, RViz observation, or physical transform measurement.
+
+## Initial Git gate
+
+```text
+$ git status --short --branch
+## fix/02-unitree-driver-and-tf...origin/fix/02-unitree-driver-and-tf
+
+$ git branch --show-current
+fix/02-unitree-driver-and-tf
+
+$ git rev-parse HEAD
+664bd9fd3e346b681d7b4b48e683936cdc79bfa3
+
+$ git log --oneline --decorate -10
+664bd9f (HEAD -> fix/02-unitree-driver-and-tf, origin/integration/robot-ready, origin/fix/02-unitree-driver-and-tf, integration/robot-ready) Merge Phase 1 Humble baseline correction
+[nine earlier commits inspected]
+
+$ git merge-base HEAD integration/robot-ready
+664bd9fd3e346b681d7b4b48e683936cdc79bfa3
+
+$ git diff integration/robot-ready...HEAD
+exit 0; no output
+```
+
+The starting working tree was clean, the required branch was active, both branches pointed to `664bd9f`, and there was no committed divergence. No branch operation, commit, merge, rebase, or push was performed.
+
+## Source and history inspection
+
+The following inspection commands were run before editing:
+
+```text
+rg --files -g 'AGENTS.md' -g '!build' -g '!install' -g '!log'
+rg --files ws/src/unitree_lidar_ros2 ws/src/unitree_lidar_sdk
+sed -n ... on AGENTS.md, all Unitree wrapper source/build/launch/RViz files,
+  relevant SDK public headers/examples, required architecture/roadmap/verification files,
+  run_lidar.sh, build_ws.sh, and validation scripts
+rg -n ... on CODEBASE_DEEP_DIVE.md and CODEBASE_OVERVIEW.md
+git log --oneline --decorate --all -- ws/src/unitree_lidar_ros2
+git log --oneline --decorate --all -- ws/src/unitree_lidar_sdk
+git log -p -3 -- ws/src/unitree_lidar_ros2/...
+git diff integration/robot-ready...HEAD
+```
+
+Direct inspection rechecked the historical deep-dive findings against current source. It confirmed ignored SDK initialization results, reversed direct-run UDP addresses, duplicate IMU retrieval, inconsistent quaternion order between IMU and TF, a constant transform sent dynamically, different IMU/TF timestamps, unconditional RViz, and no transport close. It also confirmed Phase 1 already corrected the sibling SDK selection/install path and dependency metadata; those corrections were retained. The focused correction rechecked SDK2 work-mode bits 0–4, local examples using Ethernet mode 0 and serial mode 8, the absence of a driver `startLidarRotation()` call, timestamp conversion behavior, and launch parameter precedence.
+
+The software inventory identifies checked-in SDK2 version 2.0.9 and its L2-family software lineage. This is not physical identification: the robot's actual LiDAR model, hardware revision, and firmware remain unconfirmed.
+
+## Available environment
+
+```text
+$ uname -a
+Darwin MacBookPro.lan 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:38:56 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T6000 arm64
+
+$ uname -m
+arm64
+
+$ sw_vers
+ProductName: macOS
+ProductVersion: 26.5.1
+BuildVersion: 25F80
+
+$ python3 --version
+Python 3.13.7
+
+ros2: not found
+colcon: not found
+rosdep: not found
+cmake: not found
+shellcheck: not found
+xmllint: /usr/bin/xmllint
+/opt/ros/humble/setup.bash: absent
+```
+
+An early `python3 -c 'import yaml'` capability check exited 1 with `ModuleNotFoundError: No module named 'yaml'`. No dependency was installed. The checked-in ROS parameter file therefore uses JSON-formatted YAML and the focused validator parses it with the Python standard-library JSON parser.
+
+This host is not the supported Raspberry Pi 4 / Ubuntu 22.04 / Linux `aarch64` / ROS 2 Humble / Python 3.10 target. It cannot run CMake configuration, C++ compilation/linking, colcon, ROS launch parsing, ROS graph checks, or a hardware test.
+
+## First real Humble ARM64 attempt: blocked before compilation
+
+A user-supplied target transcript records the first real build-only attempt with this environment:
+
+```text
+Raspberry Pi 4
+Ubuntu 22.04.5 Jammy
+Linux aarch64
+Python 3.10.12
+ROS 2 Humble at /opt/ros/humble
+clean env -i Bash shell with --noprofile --norc
+no legacy ROS/AMENT/COLCON/CMAKE_PREFIX_PATH/PYTHONPATH variables
+no robot processes running
+
+$ ./scripts/verify_build.sh 2>&1 | tee <external-validation-dir>/phase2-verify-build-attempt-1.log
+/opt/ros/humble/setup.bash: line 8: AMENT_TRACE_SETUP_FILES: unbound variable
+```
+
+Result `BUILD-003-R04` is **Blocked**. Repository scripts had `set -euo pipefail` active while sourcing the generated Humble setup, which can read `AMENT_TRACE_SETUP_FILES` when it is unset. The failure occurred before package discovery, CMake configuration, compilation, SDK linking, installation, colcon tests, launch-resource inspection, or installed-package discovery. None of those items passed. The sanitized repository evidence is `docs/verification/artifacts/phase2-verify-build-attempt-1.log`.
+
+The focused correction adds `scripts/lib/source_setup.bash`. Its `source_setup_file` function validates the requested file, records whether the caller had nounset enabled, disables nounset only while sourcing, and restores the prior state after success or failure. It does not set `AMENT_TRACE_SETUP_FILES` or invent any clock, networking, driver, or ROS behavior. The original correction covered five setup locations; the new focused verifier adds two more. All seven current ROS/workspace setup locations are audited by the regression.
+
+## Corrected Raspberry Pi rerun
+
+The corrected uncommitted working tree was rerun on a Raspberry Pi 4 with Ubuntu 22.04.5 Jammy, Linux `aarch64`, Python 3.10.12, and ROS 2 Humble. The shell was isolated with no inherited ROS/AMENT/COLCON/CMAKE_PREFIX_PATH/PYTHONPATH state, and no robot, LiDAR, serial, motor, or tmux processes were running.
+
+Sanitized repository evidence derived only from the supplied preserved transcripts is retained as:
+
+- `docs/verification/artifacts/phase2-verify-build-attempt-1.log`
+- `docs/verification/artifacts/phase2-verify-build-rerun.log`
+- `docs/verification/artifacts/phase2-unitree-postbuild.log`
+- `docs/verification/artifacts/phase2-unitree-focused.log`
+
+The raw line-by-line files were not present in this workspace, so the repository artifacts explicitly identify themselves as sanitized evidence summaries and do not invent missing output.
+
+Verified by the corrected Pi rerun:
+
+- the setup-source regression passed on real Humble;
+- both static validators passed;
+- all eleven workspace packages completed a clean colcon build;
+- `unitree_lidar_ros2` compiled and linked successfully on ARM64/Humble;
+- `unitree_sdk_library.txt` and the link stage selected the checked-in `lib/aarch64/libunilidar_sdk2.a`;
+- installed Unitree launch, config, and RViz resources were found; and
+- `ros2 launch unitree_lidar_ros2 launch.py --show-args` completed without launching hardware.
+
+This is `BUILD-004-R04`, `DEP-001-R05`, `LIDAR-SW-001-R03`, `BUILD-002-R03`, and `UNITREE-BUILD-001-R03`. It passes compilation/install/link checks for this working tree, not fresh-image dependency provisioning or physical runtime behavior.
+
+The unchanged strict full-workspace test gate then failed (`BUILD-003-R05`) only on inherited Flake8/PEP257 findings in `esp_bridge`, `esp_fusion_pkg`, `fusion_pkg`, `gap_follow`, `lidar_logger_pkg`, `tof_processor_pkg`, `ultrasonic_pkg`, and `vfh_pkg`. No `unitree_lidar_ros2` build or test failure was reported. Those findings are preserved as later `LINT-001` cleanup; Phase 2 does not suppress the tests or reformat those packages.
+
+Nonfatal build warnings were also retained: unused `argc`/`argv` parameters in vendor example programs, and a CMake CMP0074/PCL_ROOT developer warning. The checked-in vendor examples were not edited merely to silence warnings.
+
+The new `scripts/verify_unitree_phase2.sh` is deliberately separate from the strict general verifier. It uses a clean, ignored `ws/.phase2-verification` build/install/log tree so normal full-workspace outputs are not replaced. It runs the setup regression and both static validators, enforces Humble/Jammy/Linux-aarch64/Python-3.10 prerequisites, performs a clean `--packages-select unitree_lidar_ros2` build, requires both the SDK selection file and link command to reference the checked-in aarch64 archive, checks installed launch/config/RViz resources, parses launch arguments with `--show-args`, runs Unitree package-specific tests, discovers the installed executable, and invokes only the invalid `initialize_type:=0` rejection path. Static source validation requires parameter rejection to precede SDK initialization; the runtime command has a timeout and must emit the exact validation diagnostic. It never launches a valid hardware configuration.
+
+The consolidated verifier was subsequently run in the isolated Raspberry Pi environment and returned `PHASE2_FOCUSED_STATUS=0` (`LIDAR-SW-002-R01`). This passes the setup regression, platform prerequisites, Unitree static contract, clean focused build, checked-in ARM64 archive selection/link input, installed launch/config/RViz resources, `launch --show-args`, installed executable discovery, and pre-SDK `initialize_type:=0` rejection. `colcon test` for `unitree_lidar_ros2` completed but discovered zero tests; the result proves the test command did not report a failure, not that the package has unit-test coverage.
+
+## Passed static validation
+
+```text
+$ python3 scripts/validate_ros_packages.py
+PASS: validated 10 ROS manifests, 11 source packages, Python entry points/import dependencies, Humble build-script defaults, Unitree SDK architecture/install assets, and installed launch/config/RViz resource paths.
+exit 0
+
+$ python3 scripts/validate_unitree_driver.py
+PASS: validated 30 Unitree defaults plus 7 measured-only TF parameters, SDK2 work-mode/timestamp restrictions, YAML-authoritative launch precedence, headless/optional-RViz launch, topic/frame/TF/QoS source invariants, installed resources, SDK architecture selection, and unchanged aarch64/x86_64 vendor archives.
+exit 0
+
+$ python3 -m compileall -q scripts ws/src
+exit 0
+
+$ bash -n build_ws.sh
+exit 0
+
+$ bash -n scripts/verify_build.sh
+exit 0
+
+$ bash -n scripts/verify_unitree_phase2.sh
+exit 0
+
+$ bash -n run_lidar.sh
+exit 0
+
+$ bash -n scripts/lib/source_setup.bash
+exit 0
+
+$ bash -n scripts/test_source_setup.sh
+exit 0
+
+$ ./scripts/test_source_setup.sh
+PASS: setup sourcing tolerates unset AMENT_TRACE_SETUP_FILES, restores nounset, and rejects a missing setup file.
+exit 0
+
+$ xmllint --noout ws/src/*/package.xml
+exit 0
+
+$ git diff --check
+exit 0
+```
+
+The focused validator parses the launch Python AST and JSON-formatted YAML, compares all compiled and installed defaults, checks that the seven measured robot-to-IMU values are conditional and have no fabricated defaults, executes the pure explicit-override helper, verifies that empty launch arguments preserve YAML and non-empty arguments override only their matching parameter, checks SDK2 bit positions and work-mode rejection paths, verifies parameter validation occurs before SDK initialization, enforces the system-timestamp restriction, checks source-level quaternion/frame/TF/QoS/failure/shutdown invariants, verifies install and architecture-selection rules, and hashes both vendor archives.
+
+Static inspection also checked ROS 2 Humble primary source for the `SensorDataQoS(KeepLast(...))` constructor and list-valued process `on_exit` actions. This source check is compatibility support, not a ROS runtime result.
+
+The ROS-independent setup regression creates a temporary mock setup file that reads unset `AMENT_TRACE_SETUP_FILES` in the same shell-expansion form as the generated Humble setup. It verifies that sourcing succeeds and updates the current shell, nounset remains effective for a caller that started with it enabled, nounset remains disabled for a caller that started with it disabled, and a missing setup path fails with the exact diagnostic. It audits all seven current repository setup-source call sites. The static run is `BUILD-004-R03`, and the corrected Pi run is `BUILD-004-R04`.
+
+## Vendor archive preservation
+
+```text
+$ shasum -a 256 ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a ws/src/unitree_lidar_sdk/lib/x86_64/libunilidar_sdk2.a
+4e334b67c1a92152c89363d8014a6e361d7bf590e58484d7d6ddc8541389de28  ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a
+a8530545cbd435e3a96b9a099cd57921202aed3d690066f55ea0ade4310212d3  ws/src/unitree_lidar_sdk/lib/x86_64/libunilidar_sdk2.a
+exit 0
+
+$ file ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a ws/src/unitree_lidar_sdk/lib/x86_64/libunilidar_sdk2.a
+ws/src/unitree_lidar_sdk/lib/aarch64/libunilidar_sdk2.a: current ar archive
+ws/src/unitree_lidar_sdk/lib/x86_64/libunilidar_sdk2.a: current ar archive
+exit 0
+
+$ git diff --exit-code -- ws/src/unitree_lidar_sdk/lib
+exit 0; no output
+```
+
+The hashes match the Phase 1 artifact. No vendor binary or public vendor API was changed.
+
+## Expected prerequisite failures
+
+```text
+$ ./build_ws.sh
+Building Sensor Fusion UGV ROS 2 workspace...
+ERROR: ROS 2 Humble was not found at /opt/ros/humble/setup.bash
+Install ROS 2 Humble on Ubuntu 22.04 Jammy before building.
+exit 1 (expected)
+
+$ ./scripts/verify_build.sh
+PASS: setup sourcing tolerates unset AMENT_TRACE_SETUP_FILES, restores nounset, and rejects a missing setup file.
+ERROR: ROS 2 Humble was not found at /opt/ros/humble/setup.bash
+This verification script requires Ubuntu 22.04 Jammy with ROS 2 Humble.
+exit 1 (expected)
+
+$ ./scripts/verify_unitree_phase2.sh
+PASS: setup sourcing tolerates unset AMENT_TRACE_SETUP_FILES, restores nounset, and rejects a missing setup file.
+ERROR: ROS 2 Humble was not found at /opt/ros/humble/setup.bash
+The Phase 2 verifier requires Ubuntu 22.04 Jammy with ROS 2 Humble.
+exit 1 (expected)
+```
+
+These results verify only the explicit missing-prerequisite diagnostics. No build, clean, link, install, test, launch, or hardware operation occurred.
+
+## Statically established behavior
+
+- The launch default is headless; `use_rviz:=true` is explicit.
+- YAML topic/frame values are authoritative unless the corresponding launch argument is explicitly non-empty; namespace remains independently configurable and empty by default.
+- Default relative outputs remain `/unilidar/cloud` (`PointCloud2`, `unilidar_lidar`) and `/unilidar/imu` (`Imu`, `unilidar_imu`) with best-effort, volatile, keep-last depth 10.
+- SDK2 work-mode bits 5–31, 2D mode, transport mismatches, and wait-for-start mode are rejected before SDK initialization. IMU-disabled mode requires `publish_imu_tf=false` and ignores unexpected IMU packets.
+- `use_system_timestamp=false` is rejected because no hardware-clock-to-ROS-time conversion exists.
+- The dynamic `unilidar_imu_initial -> unilidar_imu` transform uses the normalized SDK `x,y,z,w` quaternion and exactly the IMU message timestamp. Its physical reference-frame direction and sign semantics remain hardware-unverified.
+- The code-inherited `unilidar_imu -> unilidar_lidar` transform is configurable and sent through `/tf_static`.
+- A measured robot-to-IMU static transform is disabled by default, has no numeric defaults, and cannot coexist with the dynamic parent of `imu_frame`.
+- Invalid parameters and nonzero initialization results result in a nonzero process status; successful transport is closed during normal destruction.
+- Launch/config/RViz resources have install rules and the target verification script checks the installed paths plus `--show-args` without starting the driver.
+- SDK selection remains Linux-only and exact for `aarch64` and `x86_64`, with the build-tree selection recorded in `unitree_sdk_library.txt`.
+- No `/scan`, navigation, fusion, serial bridge, command, or motor behavior was added.
+
+These bullets remain source-contract claims. The separate Pi evidence now verifies C++ compilation/linking, the selected ARM64 archive, installed resources, and launch argument parsing for this working tree. It does not verify physical runtime behavior.
+
+## Target software checks still pending
+
+- other invalid work-mode, timestamp, and parameter process-exit cases
+- publisher QoS discovery, namespace/remap behavior, TF authority inspection, or launch shutdown
+- a passing strict full-workspace test gate after separately scoped `LINT-001` cleanup
+- fresh-image rosdep/install/clone/reboot reproducibility required by Phase 1 `BUILD-001`
+
+## Not run: requires the physical Unitree LiDAR and confirmed robot configuration
+
+- exact physical model/hardware/firmware/transport identification; SDK2/L2-family software lineage is not physical identification
+- serial or UDP initialization and communication
+- actual PointCloud2 or IMU publication, fields, finiteness, timestamps, freshness, or measured rate
+- physical interpretation of the IMU quaternion
+- confirmation of the code-inherited IMU-to-LiDAR transform
+- measurement and validation of the robot-frame-to-IMU transform
+- Ethernet configuration, packet loss, clean hardware shutdown, disconnect/reconnect, RViz display, or post-reboot behavior
+
+The exact future procedure is in `docs/verification/test_matrix.md`. It creates editable measured configuration under `${HOME}/phase2-validation`, outside the Git worktree. Motors must be disabled or disconnected throughout Phase 2.
+
+## Deferred to Phase 3 or later
+
+- PointCloud2-to-LaserScan conversion and `/scan`
+- robot-centric projection height/range/orientation configuration and invalid/stale scan behavior
+- obstacle avoidance, fusion, command arbitration, `/cmd_vel`, ESP serial actuation, motors, deployment, and autonomy
+- SLAM, Nav2, mapping, localization, and global planning
+
+Phase 2 stabilizes the Unitree driver and TF boundary, but it does not establish a valid robot-centric `/scan`, obstacle avoidance, or autonomous motion.

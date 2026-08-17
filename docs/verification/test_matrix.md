@@ -80,20 +80,232 @@ The recovered legacy value `ROS_DOMAIN_ID=10` is not needed for these build/disc
 | Evidence class | What it can establish | Current status |
 |---|---|---|
 | Static validation on macOS | Manifest/import/CMake/script consistency, archive format/architecture inspection, and clean missing-Humble diagnostics. | Pass for the recorded commands only; cannot prove ROS or target linkage. |
-| Target ARM64 build validation | Rosdep resolution, all eleven packages discovered by colcon, clean compile/link/install, tests, and executable discovery on the supported baseline. | Not Run on the corrected branch. |
+| Target ARM64 build validation | Rosdep resolution, all eleven packages discovered by colcon, clean compile/link/install, tests, and executable discovery on the supported baseline. | Clean discovery/build/install passed for the current Phase 2 working tree (`BUILD-002-R03`); full tests fail on inherited lint (`BUILD-003-R05`). Fresh-image rosdep/clone/reboot and complete executable discovery remain pending. |
 | Runtime dependency validation | Availability of later legacy/manual/visualization packages and ROS graph/runtime behavior when explicitly installed and launched. | Not Run; not a Phase 1 build prerequisite. |
 | Hardware validation | LiDAR, serial, motors, networking, safety, and autonomy behavior. | Deferred to later phases; no Phase 1 pass is claimed. |
+
+## Phase 2 Pi/LiDAR acceptance procedure
+
+The consolidated build-only focused command has passed on the tested Pi; every physical step still requires execution. Hardware portions are not authorized for unattended execution. Begin with the motors physically disabled or disconnected; Phase 2 must not move the robot. Run no navigation, fusion, `/cmd_vel`, ESP bridge, or motor process. Record the exact Pi, operating system, ROS version, physical LiDAR model/hardware/firmware identifiers, connection method, measured configuration provenance, Git commit, and every terminal transcript. The checked-in software's SDK2/L2-family lineage is not a substitute for inspecting the physical sensor.
+
+If the LiDAR uses a dedicated `eth0`, do not flush or readdress the interface carrying the active SSH session. Use Wi-Fi, a second interface, or a local keyboard/console for administration. Configure the dedicated LiDAR interface through a separately reviewed persistent network procedure; the commands below do not change host networking.
+
+First verify the supported environment, build, installed resources, and deterministic invalid-configuration failure without opening the LiDAR transport:
+
+```bash
+cd sensor-fusion-ugv
+export PHASE2_COMMIT='<accepted-phase-2-commit>'
+test "${PHASE2_COMMIT}" != '<accepted-phase-2-commit>'
+git checkout --detach "${PHASE2_COMMIT}"
+git rev-parse HEAD
+git status --short --branch
+uname -a
+uname -m
+cat /proc/device-tree/model
+cat /etc/os-release
+python3 --version
+
+source /opt/ros/humble/setup.bash
+./scripts/test_source_setup.sh
+./scripts/verify_unitree_phase2.sh
+./scripts/verify_build.sh
+source ws/install/setup.bash
+
+python3 scripts/validate_ros_packages.py
+python3 scripts/validate_unitree_driver.py
+ros2 launch unitree_lidar_ros2 launch.py --show-args
+
+expect_driver_rejection() {
+  local label="$1"
+  shift
+  if ros2 run unitree_lidar_ros2 unitree_lidar_ros2_node --ros-args "$@"; then
+    echo "ERROR: ${label} unexpectedly succeeded" >&2
+    return 1
+  fi
+  echo "PASS: ${label} was rejected before SDK transport initialization"
+}
+
+expect_driver_rejection "invalid initialize_type" -p initialize_type:=0
+expect_driver_rejection "reserved work_mode bit" -p work_mode:=32
+expect_driver_rejection "UDP with serial work-mode bit" -p initialize_type:=2 -p work_mode:=8
+expect_driver_rejection "serial with Ethernet work-mode bit" -p initialize_type:=1 -p work_mode:=0
+expect_driver_rejection "unsupported 2D work mode" -p work_mode:=2
+expect_driver_rejection "wait-for-start work mode" -p work_mode:=16
+expect_driver_rejection "unsupported hardware timestamps" -p use_system_timestamp:=false
+expect_driver_rejection "IMU-disabled mode with dynamic IMU TF" \
+  -p work_mode:=4 -p publish_imu_tf:=true
+```
+
+Create the editable test configuration outside the Git worktree and edit it only with confirmed values. Record the source of each changed hardware value. Keep `use_system_timestamp=true`. Valid wrapper modes retain 3D measurement and automatic rotation start: UDP uses `0` (or `1` for wide FOV), serial uses `8` (or `9`), and IMU-disabled variants add `4` while requiring `publish_imu_tf=false`. Do not use 2D, wait-for-start, reserved-bit, or transport-mismatched modes.
+
+To enable the robot-connected tree, set `publish_imu_tf` to `false`, set `publish_robot_to_imu_tf` to `true`, set `robot_frame` to the confirmed robot frame, and add all seven measured `robot_to_imu.translation.{x,y,z}` and `robot_to_imu.rotation.{x,y,z,w}` values. If those measurements are unavailable, leave the measured transform disabled and record TF physical acceptance as Not Run; do not insert an identity transform.
+
+```bash
+cd sensor-fusion-ugv
+source /opt/ros/humble/setup.bash
+source ws/install/setup.bash
+
+export PHASE2_VALIDATION_DIR="${HOME}/phase2-validation"
+mkdir -p "${PHASE2_VALIDATION_DIR}"
+export PHASE2_CONFIG="${PHASE2_VALIDATION_DIR}/phase2_unitree_measured.yaml"
+cp ws/src/unitree_lidar_ros2/config/driver.defaults.yaml "${PHASE2_CONFIG}"
+${EDITOR:?Set EDITOR to review the Phase 2 configuration} "${PHASE2_CONFIG}"
+sha256sum "${PHASE2_CONFIG}"
+git rev-parse HEAD
+git status --short
+```
+
+In terminal A, launch only the driver with RViz disabled:
+
+```bash
+cd sensor-fusion-ugv
+source /opt/ros/humble/setup.bash
+source ws/install/setup.bash
+export PHASE2_CONFIG="${HOME}/phase2-validation/phase2_unitree_measured.yaml"
+ros2 launch unitree_lidar_ros2 launch.py \
+  config_file:="${PHASE2_CONFIG}" \
+  use_rviz:=false
+```
+
+In terminal B, verify the exact default namespace/topic/type/header/QoS contract and record rates long enough for a reviewed stable measurement. If IMU packets are disabled or unsupported by the confirmed hardware, record that outcome rather than claiming an IMU pass.
+
+```bash
+cd sensor-fusion-ugv
+source /opt/ros/humble/setup.bash
+source ws/install/setup.bash
+
+ros2 node list
+ros2 node info /unitree_lidar_ros2_node
+ros2 topic list -t
+test "$(ros2 topic type /unilidar/cloud)" = "sensor_msgs/msg/PointCloud2"
+test "$(ros2 topic type /unilidar/imu)" = "sensor_msgs/msg/Imu"
+ros2 topic info --verbose /unilidar/cloud
+ros2 topic info --verbose /unilidar/imu
+ros2 param get /unitree_lidar_ros2_node initialize_type
+ros2 param get /unitree_lidar_ros2_node work_mode
+ros2 param get /unitree_lidar_ros2_node use_system_timestamp
+ros2 param get /unitree_lidar_ros2_node cloud_topic
+ros2 param get /unitree_lidar_ros2_node cloud_frame
+ros2 param get /unitree_lidar_ros2_node imu_topic
+ros2 param get /unitree_lidar_ros2_node imu_frame
+ros2 topic echo /unilidar/cloud --once --field header
+ros2 topic echo /unilidar/cloud --once --field fields
+ros2 topic echo /unilidar/cloud --once --field height
+ros2 topic echo /unilidar/cloud --once --field width
+ros2 topic hz /unilidar/cloud
+```
+
+When work-mode bit 2 is zero and IMU is enabled, also run:
+
+```bash
+ros2 topic echo /unilidar/imu --once --field header
+ros2 topic echo /unilidar/imu --once --field orientation
+ros2 topic hz /unilidar/imu
+```
+
+When work-mode bit 2 is one and IMU is deliberately disabled, `/unilidar/imu` remains advertised but must be silent. Confirm that no sample arrives during a recorded ten-second observation:
+
+```bash
+if timeout 10s ros2 topic echo /unilidar/imu --once; then
+  echo "ERROR: IMU data arrived although work_mode disables IMU" >&2
+  exit 1
+else
+  imu_echo_status=$?
+  if [[ "${imu_echo_status}" -ne 124 ]]; then
+    echo "ERROR: IMU observation failed with status ${imu_echo_status}, not timeout status 124" >&2
+    exit 1
+  fi
+  echo "PASS: no IMU sample arrived during the 10-second disabled-mode observation"
+fi
+```
+
+Stop each `ros2 topic hz` command with Ctrl-C after the chosen interval and retain its sample count, average, minimum, maximum, and standard deviation. A message's presence is not proof that every point is finite or physically correct; retain a rosbag or equivalent sample for reviewed field-level inspection. The default dynamic initial-IMU TF is a legacy-compatible software mapping: do not mark its physical direction/sign semantics verified until stationary and controlled-motion data establish the quaternion reference-frame interpretation.
+
+Verify static and dynamic TF according to the reviewed configuration:
+
+```bash
+ros2 topic echo /tf_static tf2_msgs/msg/TFMessage \
+  --qos-durability transient_local --once
+ros2 topic echo /tf tf2_msgs/msg/TFMessage --once
+ros2 run tf2_ros tf2_echo unilidar_imu unilidar_lidar
+ros2 run tf2_tools view_frames
+```
+
+For the default sensor-only configuration, also run:
+
+```bash
+ros2 run tf2_ros tf2_echo unilidar_imu_initial unilidar_imu
+```
+
+For an enabled measured robot-connected configuration, use the confirmed frame name and verify the composed robot-to-cloud transform instead. The command intentionally has no guessed frame default:
+
+```bash
+export PHASE2_ROBOT_FRAME='<confirmed-robot-frame>'
+test "${PHASE2_ROBOT_FRAME}" != '<confirmed-robot-frame>'
+ros2 run tf2_ros tf2_echo "${PHASE2_ROBOT_FRAME}" unilidar_imu
+ros2 run tf2_ros tf2_echo "${PHASE2_ROBOT_FRAME}" unilidar_lidar
+```
+
+Stop each `tf2_echo` with Ctrl-C after retaining representative output. Review `view_frames` output for exactly one parent per child, expected `/tf` versus `/tf_static` ownership, no duplicate authority, and no unmeasured transform. Confirm that no unrelated process supplied `/scan`:
+
+```bash
+if ros2 topic list | grep -Fx /scan; then
+  echo "ERROR: unexpected /scan exists during the Phase 2-only test" >&2
+  exit 1
+else
+  echo "PASS: Phase 2 driver does not provide /scan"
+fi
+```
+
+In terminal A, press Ctrl-C once. Then verify clean process exit in terminal B:
+
+```bash
+if ros2 node list | grep -Fx /unitree_lidar_ros2_node; then
+  echo "ERROR: Unitree node remains after launch shutdown" >&2
+  exit 1
+else
+  echo "PASS: Unitree node exited"
+fi
+```
+
+Finally, on a Pi with an available display or correctly configured remote display, deliberately test the optional visualization and record the observation; this is separate from the headless pass:
+
+```bash
+cd sensor-fusion-ugv
+source /opt/ros/humble/setup.bash
+source ws/install/setup.bash
+export PHASE2_CONFIG="${HOME}/phase2-validation/phase2_unitree_measured.yaml"
+ros2 launch unitree_lidar_ros2 launch.py \
+  config_file:="${PHASE2_CONFIG}" \
+  use_rviz:=true
+```
+
+Press Ctrl-C once and confirm both processes exit. Repeat the approved headless subset after reboot before claiming deployment persistence. Phase 2 records cloud/IMU/TF behavior only; it makes no `/scan`, obstacle-avoidance, command, motor, or autonomy claim.
+
+## Phase 2 evidence boundaries
+
+| Evidence class | What it can establish | Current status |
+|---|---|---|
+| Host/target static validation | Declared parameter/default agreement, launch structure, source-level frame/TF/QoS invariants, installed-resource rules, architecture-selection logic, and unchanged vendor archive hashes. | Pass on macOS (`LIDAR-SW-001-R02`) and the isolated Pi/Humble target (`LIDAR-SW-001-R03`) for the tested uncommitted working tree. |
+| ROS 2 Humble build/install validation | C++ compilation/linking, selected ARM64 SDK input, installed Unitree resources, and launch argument parsing. | Pass for the tested Pi working tree (`BUILD-002-R03`, `UNITREE-BUILD-001-R03`). This is not fresh-image reproducibility or physical runtime evidence. |
+| Full workspace test gate | All package tests, including inherited Python lint tests. | Fail (`BUILD-003-R05`) only on inherited Flake8/PEP257 findings in eight non-Unitree packages. No Unitree build/test failure was reported; the gate remains strict. |
+| Focused Phase 2 target gate | Repeatable isolated Unitree clean build/test/install/executable/invalid-configuration verification through `scripts/verify_unitree_phase2.sh`. | Pass (`LIDAR-SW-002-R01`) on the isolated Pi. Unitree `colcon test` discovered zero tests, so this passes the command/test gate but establishes no unit-test coverage. |
+| Physical Unitree validation | Initialization, transport, actual cloud/IMU content and rate, timestamp behavior, physical TF correctness, clean hardware shutdown, reconnection, and reboot behavior. | Not Run. |
+| Robot-connected TF measurement | Confirmed robot frame plus seven measured `robot_to_imu` values and confirmed sensor-internal extrinsic, with one TF parent per child. | Not Run; no numeric robot extrinsic is supplied by default. |
 
 | ID | Subsystem | Requirement / claim | Phase | Verification method | Automated or hardware | Expected evidence | Status | Commit/tag | Notes |
 |---|---|---|---:|---|---|---|---|---|---|
 | BUILD-001 | Dependency resolution | A fresh target-Pi clone resolves all declared workspace dependencies through the documented rosdep procedure. | 1 | Run `rosdep update` and `rosdep install --from-paths ws/src --ignore-src --rosdistro humble -r -y` on a clean supported Pi image. | Deployment + automated | Environment inventory, clone commit, and complete rosdep transcript. | Not Run | — | Must not use undeclared developer-machine or global-pip state. |
-| BUILD-002 | Clean build | The intended workspace builds on Raspberry Pi 4 / Ubuntu 22.04 / ROS 2 Humble / Linux `aarch64` / Python 3.10. | 1 | Run `./scripts/verify_build.sh` after BUILD-001 on the fresh target Pi; it invokes `./build_ws.sh --clean`. | Automated on target | Colcon build summary and compiler/linker output. | Not Run | — | The recovered old Pi is historical evidence; macOS static checks do not pass this fresh-clone claim. |
-| BUILD-003 | Workspace tests | Workspace tests complete without build, install, or packaging failures. | 1 | Source `ws/install/setup.bash`, run `colcon test`, then `colcon test-result --verbose`. | Automated on target | Colcon test summary and detailed results. | Not Run | — | Hardware devices need not be connected. |
-| BUILD-004 | Build tooling | Developer build/verification scripts locate the workspace reliably, pass shell/static validation, and fail clearly when Humble is unavailable. | 1 | Run `bash -n` on shell tools, run the static validator, and exercise the missing-Humble prerequisite path. | Automated static | Phase 1 correction static-validation artifact and exact command output. | Pass | Working tree atop `ed47083` | `BUILD-004-R02` passed on macOS; this does not replace BUILD-001 through BUILD-003. |
+| BUILD-002 | Clean build | The intended workspace builds on Raspberry Pi 4 / Ubuntu 22.04 / ROS 2 Humble / Linux `aarch64` / Python 3.10. | 1 | Run `./scripts/verify_build.sh`; it invokes `./build_ws.sh --clean`. Repeat after BUILD-001 on a fresh image for reproducibility acceptance. | Automated on target | Colcon build summary and compiler/linker output. | Pass | Working tree atop `664bd9f` | `BUILD-002-R03`: all eleven packages built in the isolated Pi environment. BUILD-001 fresh-image dependency/clone reproducibility remains Not Run. |
+| BUILD-003 | Workspace tests | Workspace tests complete without build, install, or packaging failures. | 1 | Run `./scripts/verify_build.sh`; after its clean build, it sources the install setup through the strict-shell helper, runs `colcon test`, and runs `colcon test-result --verbose`. | Automated on target | Colcon build/test summary and detailed results. | Fail | Working tree atop `664bd9f` | `BUILD-003-R05`: inherited Flake8/PEP257 debt in eight non-Unitree Python packages. No Unitree failure was reported; the general verifier remains strict. |
+| BUILD-004 | Build tooling | Developer build/verification scripts locate the workspace reliably, pass shell/static validation, fail clearly when Humble or a setup file is unavailable, and preserve strict nounset behavior around ROS/ament/colcon setup files. | 1 | Run `bash -n` on shell tools, both static validators, `./scripts/test_source_setup.sh`, and the missing-Humble prerequisite path. | Automated static + target | Phase 1/2 artifacts and exact command output. | Pass | Working tree atop `664bd9f` | `BUILD-004-R04` passed the setup-source regression on the isolated Pi/Humble target. This does not pass BUILD-001 or BUILD-003. |
 | PKG-001 | Installed packages | Every checked-in ROS executable is installed and discoverable through `ros2 pkg executables`. | 1 | Run the executable-discovery commands above or `./scripts/verify_build.sh` after a clean build. | Automated on target | Command output for all expected package/executable pairs. | Not Run | — | No hardware connection is required. |
-| UNITREE-BUILD-001 | Unitree SDK linkage | The Unitree ROS wrapper resolves the checked-in sibling SDK include path and links the matching `aarch64` Linux archive. | 1 | Inspect configuration diagnostics and linker input/output during a clean `aarch64` build. | Automated on target | CMake configuration and link log tied to the vendor archive checksum. | Not Run | — | Static inspection confirms paths and archive architecture; Pi linkage remains pending. |
-| DEP-001 | Dependency metadata | All current runtime Python imports, C++/launch includes, and external serial/PCL requirements are represented in package metadata. | 1 | Run `python3 scripts/validate_ros_packages.py` and perform a direct manifest/source comparison. | Automated static | Static audit output and reviewed manifest diff. | Pass | Working tree atop `ed47083` | `DEP-001-R04` verified current source; clean rosdep resolution remains BUILD-001. |
+| UNITREE-BUILD-001 | Unitree SDK linkage | The Unitree ROS wrapper resolves the checked-in sibling SDK include path and links the matching `aarch64` Linux archive. | 1 | Inspect configuration diagnostics, `unitree_sdk_library.txt`, and linker input/output during a clean `aarch64` build. | Automated on target | CMake configuration and link log tied to the vendor archive checksum. | Pass | Working tree atop `664bd9f` | `UNITREE-BUILD-001-R03`; installed launch/config/RViz resources and `launch --show-args` also passed. Vendor-example unused-parameter and CMP0074/PCL_ROOT developer warnings were nonfatal and remain recorded. |
+| DEP-001 | Dependency metadata | All current runtime Python imports, C++/launch includes, and external serial/PCL requirements are represented in package metadata. | 1 | Run `python3 scripts/validate_ros_packages.py` and perform a direct manifest/source comparison. | Automated static | Static audit output and reviewed manifest diff. | Pass | Working tree atop `664bd9f` | `DEP-001-R05` passed on the isolated target Pi; clean fresh-image rosdep resolution remains BUILD-001. |
 | DEP-002 | External dependency roles | Recovered external packages are explicitly separated into build/bootstrap, legacy bring-up, development/manual-test, and optional visualization roles. | 1 | Review the dependency table against source, recovered process evidence, and the clean build procedure; check runtime packages only when their later activity is authorized. | Documentation + later runtime | Reviewed classification and, when applicable, `ros2 pkg prefix`/tool output on the supported Pi. | Pass | Working tree atop `ed47083` | Classification passed as `DEP-002-R01`; fresh-Pi installation/discovery remains Not Run. |
+| LIDAR-SW-001 | Unitree static contract | Driver parameters/defaults, SDK2 work-mode and timestamp restrictions, YAML-authoritative launch precedence, headless/optional RViz, topic/frame defaults, TF ownership, QoS, resource installation, SDK architecture selection, and vendor hashes agree across source/config/launch/build files. | 2 | Run both Python static validators, syntax/XML checks, archive hashes, and direct source/config review. | Automated static | Phase 2 static-validation artifact and working-tree diff. | Pass | Working tree atop `664bd9f` | `LIDAR-SW-001-R03` passed the focused validator on the target Pi. This does not pass physical initialization, transport, topics, TF semantics, RViz, shutdown, or hardware claims. |
+| LIDAR-SW-002 | Focused Unitree target gate | The isolated Phase 2 verifier clean-builds only `unitree_lidar_ros2`, proves the ARM64 archive link and installed resources, runs package-specific tests and executable discovery, and rejects invalid `initialize_type` before SDK initialization without starting hardware. | 2 | Run `./scripts/verify_unitree_phase2.sh` in an isolated supported Pi shell and retain its complete transcript. | Automated on target, no hardware | Focused verifier transcript, link selection, test result, executable output, and invalid-configuration diagnostic. | Pass | Working tree atop `664bd9f` | `LIDAR-SW-002-R01`; status 0. `colcon test` completed with zero discovered tests, so no Unitree unit-test coverage is claimed. The strict full-workspace gate remains Fail under `BUILD-003-R05`. |
+| LINT-001 | Inherited Python style debt | Existing Flake8/PEP257 findings in eight non-Unitree packages are resolved in a separately scoped cleanup without behavioral changes or weakened tests. | Later cleanup | Preserve the strict workspace gate, make reviewed package-local style corrections, then rerun `./scripts/verify_build.sh`. | Automated static/target | Before/after lint findings and a passing full-workspace test transcript. | Fail | Working tree atop `664bd9f` | `BUILD-003-R05`; affects `esp_bridge`, `esp_fusion_pkg`, `fusion_pkg`, `gap_follow`, `lidar_logger_pkg`, `tof_processor_pkg`, `ultrasonic_pkg`, and `vfh_pkg`. Explicitly outside Phase 2. |
 | LIDAR-001 | Unitree driver | Unitree driver starts successfully and reports initialization failure deterministically. | 2 | Automated failure-path test and physical device startup using approved transport/configuration. | Automated + hardware | Test report, driver logs, model/firmware/transport record. | Not Run | — | Exact model must be confirmed, not inferred from older docs. |
 | LIDAR-002 | Unitree cloud | `/unilidar/cloud` is fresh and contains valid finite point fields at the required operating rate. | 2 | Inspect topic type/rate/age and record a stationary/motion sample. | Hardware | Topic statistics and rosbag/capture tied to sensor configuration. | Not Run | — | Acceptance bounds must be specified before test. |
 | TF-001 | TF | Unitree sensor frames are connected to `base_link` with measured transform and valid orientation/timestamps. | 2 | TF graph inspection, quaternion checks, static placement checks, and measured extrinsic review. | Automated + hardware | TF graph, test output, measurement worksheet, configuration. | Not Run | — | Current repository trees are disconnected. |

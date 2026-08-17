@@ -40,7 +40,7 @@ validation/13-release-candidate
 ## Phase 1 — Reproducible Pi build
 
 - **Branch name:** `fix/01-reproducible-pi-build`
-- **Status:** Implementation corrected to the recovered Jammy/Humble baseline; clean target-Pi validation pending.
+- **Status:** Implementation corrected to the recovered Jammy/Humble baseline. A clean build of the current Phase 2 working tree passed on the target Pi, but fresh-image dependency/clone reproducibility and the strict full-workspace test gate remain pending/failed respectively.
 - **Goal:** Make dependency installation and a clean ROS 2 build reproducible on the supported Raspberry Pi environment.
 - **Primary issues addressed:** Unitree sibling SDK paths; incomplete package manifests; undeclared serial/ROS dependencies; ambiguous target prerequisites.
 - **Codex/software work:** Correct build metadata and dependency declarations, document the supported OS/ROS/architecture, and add clean-build checks without changing autonomy algorithms.
@@ -51,13 +51,17 @@ validation/13-release-candidate
 ## Phase 2 — Unitree driver and TF
 
 - **Branch name:** `fix/02-unitree-driver-and-tf`
-- **Status:** Planned.
+- **Status:** The consolidated non-hardware Phase 2 verifier passed on the tested Raspberry Pi 4 / Jammy / Humble / `aarch64` working tree, including clean Unitree compilation/linking, installed resources/executable, launch argument parsing, and pre-SDK invalid-configuration rejection. Its Unitree `colcon test` run discovered zero tests, so unit-test coverage is not established. All physical LiDAR acceptance remains pending, and the strict full-workspace gate still fails on inherited non-Unitree Python style debt.
 - **Goal:** Make Unitree startup, data validity, timestamping, and a measured robot-connected TF chain reliable.
 - **Primary issues addressed:** Unchecked initialization; quaternion-order inconsistency; disconnected TF trees; unverified model, transport, and sensor mounting.
-- **Codex/software work:** Add driver error handling and tests, correct source-verified transform issues, and expose measured extrinsics/configuration without guessing hardware values.
+- **Codex/software work:** Driver error handling, deterministic parameters, headless launch, source-verified quaternion/timestamp correction, static-versus-dynamic TF ownership, installed configuration, focused static validation, and an isolated non-hardware `scripts/verify_unitree_phase2.sh` target gate are implemented in the Phase 2 review working tree. No robot mounting transform was guessed. The general workspace verifier remains strict.
 - **Human/hardware work:** Confirm LiDAR model/firmware/transport and measure the LiDAR/IMU pose relative to `base_link`; collect stationary and motion data.
 - **Acceptance gate:** Driver start/failure behavior is deterministic, `/unilidar/cloud` is fresh and valid, and TF connects the sensor to the robot using traceable measured values.
 - **Expected evidence:** Driver logs, topic-rate/field captures, TF inspection, measurement record, rosbag or equivalent data, and hardware configuration.
+
+### Deferred cross-cutting cleanup — inherited Python lint debt
+
+The Pi test exposed existing Flake8/PEP257 findings in `esp_bridge`, `esp_fusion_pkg`, `fusion_pkg`, `gap_follow`, `lidar_logger_pkg`, `tof_processor_pkg`, `ultrasonic_pkg`, and `vfh_pkg`. This is a clearly scoped later cleanup item, not a Unitree-driver failure and not Phase 2 work. The strict full-workspace test gate must remain enabled; a later change should correct the findings package by package without behavioral edits, retain before/after output, and rerun the complete verifier.
 
 ## Phase 3 — PointCloud2 to scan
 
