@@ -6,6 +6,7 @@
 
 #define BOOST_BIND_NO_PLACEHOLDERS
 
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -59,6 +60,8 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_cloud_;
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr pub_imu_;
   rclcpp::TimerBase::SharedPtr timer_;
+  std::chrono::steady_clock::time_point last_valid_cloud_time_{};
+  bool has_published_valid_cloud_{false};
   std::shared_ptr<tf2_ros::TransformBroadcaster> dynamic_tf_broadcaster_;
   std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;
 

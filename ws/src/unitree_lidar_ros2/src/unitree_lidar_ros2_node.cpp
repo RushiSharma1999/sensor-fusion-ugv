@@ -456,9 +456,20 @@ void UnitreeLidarSDKNode::handle_point_packet()
 {
   PointCloudUnitree cloud;
   if (!lidar_reader_->getPointCloud(cloud)) {
-    RCLCPP_WARN_THROTTLE(
-      get_logger(), *get_clock(), kWarningThrottleMilliseconds,
-      "Unitree SDK reported a point packet but did not return a point cloud");
+    const auto now = std::chrono::steady_clock::now();
+    const bool recent_valid_cloud =
+      has_published_valid_cloud_ &&
+      now - last_valid_cloud_time_ <
+      std::chrono::milliseconds(kWarningThrottleMilliseconds);
+    if (recent_valid_cloud) {
+      RCLCPP_DEBUG_THROTTLE(
+        get_logger(), *get_clock(), kWarningThrottleMilliseconds,
+        "Unitree SDK point indication did not yield a cloud while valid clouds remain fresh");
+    } else {
+      RCLCPP_WARN_THROTTLE(
+        get_logger(), *get_clock(), kWarningThrottleMilliseconds,
+        "Unitree SDK point indication did not yield a cloud and no valid cloud was published recently");
+    }
     return;
   }
 
@@ -481,16 +492,22 @@ void UnitreeLidarSDKNode::handle_point_packet()
   message.header.frame_id = cloud_frame_;
   message.header.stamp = stamp;
   pub_cloud_->publish(message);
+  last_valid_cloud_time_ = std::chrono::steady_clock::now();
+  has_published_valid_cloud_ = true;
 }
 
 bool UnitreeLidarSDKNode::normalized_imu_quaternion(
   const LidarImuData & imu,
   geometry_msgs::msg::Quaternion & quaternion) const
 {
-  const double x = imu.quaternion[0];
-  const double y = imu.quaternion[1];
-  const double z = imu.quaternion[2];
-  const double w = imu.quaternion[3];
+  // The vendor header/example and upstream ROS publishers disagree about this
+  // array's component order. The project mapping below is supported by the
+  // recorded upright, planar-rotation hardware test and matches Unitree's
+  // upstream dynamic-TF conversion.
+  const double x = imu.quaternion[1];
+  const double y = imu.quaternion[2];
+  const double z = imu.quaternion[3];
+  const double w = imu.quaternion[0];
   const double norm = std::sqrt(x * x + y * y + z * z + w * w);
   if (!is_finite(x) || !is_finite(y) || !is_finite(z) || !is_finite(w) ||
     !is_finite(norm) || norm < kMinimumQuaternionNorm)

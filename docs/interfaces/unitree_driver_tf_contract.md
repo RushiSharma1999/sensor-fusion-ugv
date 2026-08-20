@@ -2,9 +2,9 @@
 
 ## Scope and evidence boundary
 
-This document describes the checked-in `unitree_lidar_ros2` wrapper after the Phase 2 software changes. It is an interface contract, not evidence that a physical LiDAR, network, serial link, timestamp source, transform, or publish rate has passed on the robot.
+This document describes the checked-in `unitree_lidar_ros2` wrapper after the Phase 2 software changes. Raspberry Pi/UDP testing now provides physical evidence for Unitree L2 communication, repeated cloud and IMU publication, the project quaternion-array mapping, the sensor-internal TF contract, clean driver restart, live network restoration, physical Ethernet reconnect, and post-reboot operation. The evidence does not establish the exact firmware revision, external-reference timestamp accuracy, measured robot extrinsics, serial transport, optional RViz display, or any navigation, fusion, command, motor, or autonomous behavior.
 
-The supported compatibility baseline remains Raspberry Pi 4, Ubuntu 22.04 Jammy, Linux `aarch64`, ROS 2 Humble, and Python 3.10. The checked-in SDK2 software lineage targets the Unitree L2 family. That identifies the software lineage only: the exact physical robot LiDAR model, hardware revision, and firmware are unknown until inspected. The wrapper does not publish `/scan`, start navigation, or start any actuator component.
+The supported compatibility baseline remains Raspberry Pi 4, Ubuntu 22.04 Jammy, Linux `aarch64`, ROS 2 Humble, and Python 3.10. The checked-in SDK2 software lineage targets the Unitree L2 family, and the tested physical sensor is identified as a Unitree L2 LiDAR. Software lineage and physical identification remain distinct facts; the exact physical hardware revision and firmware are unconfirmed. The wrapper does not publish `/scan`, start navigation, or start any actuator component.
 
 ## Verified from code
 
@@ -94,7 +94,11 @@ With the default empty namespace, relative topic names resolve as follows:
 
 The cloud is unorganized (`height=1`, `width=number of converted points`) and marked `is_dense=false`. PCL serialization provides `x`, `y`, `z`, `intensity`, `ring`, and point-relative `time` fields from `PointType`; the wrapper adds no filter. The SDK `cloud.id` is not represented because ROS 2 message headers have no sequence field.
 
-The IMU message carries normalized SDK quaternion order `[0,1,2,3] = x,y,z,w`, angular velocity, and linear acceleration. A non-finite vector, non-finite or zero-norm quaternion, or invalid SDK timestamp causes that sample and its dynamic TF to be dropped with a throttled warning. Covariance arrays remain zero, meaning the wrapper supplies no measured covariance.
+**Verified on the tested physical Unitree L2:** `/unilidar/cloud` repeatedly published at approximately 11.94–11.97 Hz with height 1, point step 32, `is_dense=false`, the six fields above, and observed widths 5107, 5129, 5152, 5155, 5164, 5221, and 5252. `/unilidar/imu` repeatedly published at approximately 249–252 Hz with the contracted frame. These are observed operating values, not guaranteed rate or size bounds, and they do not prove every point's numeric accuracy.
+
+The IMU message uses the empirically supported project mapping `ROS (x,y,z,w) = SDK [1,2,3,0]`, followed by the existing finite, nonzero-norm, and normalization checks. A non-finite vector, non-finite or zero-norm reordered quaternion, or invalid SDK timestamp causes that sample and its dynamic TF to be dropped with a throttled warning. Covariance arrays remain zero, meaning the wrapper supplies no measured covariance.
+
+The vendor sources are internally inconsistent about the SDK array. The checked-in SDK2 `example.h` labels indices `[0,1,2,3]` as `(x,y,z,w)`, and the historical/upstream ROS IMU publisher assigned those indices directly, while Unitree's historical/upstream dynamic TF assigned `[1,2,3,0]` to ROS `(x,y,z,w)`. The project does not resolve that contradiction by treating either comment as authoritative. The canonical wrapper conversion follows the latter order because the recorded physical planar-rotation test supports it.
 
 The driver never republishes cached cloud or IMU data. If input stops, the output topics become silent; no driver health topic or autonomous safe-state decision is implemented. Downstream freshness enforcement remains required before autonomous use. When work-mode bit 2 disables IMU, `/unilidar/imu` remains discoverable because the publisher is constructed, but it deliberately emits no messages; `publish_imu_tf` must be false and the dynamic initial-IMU TF is also absent.
 
@@ -102,7 +106,7 @@ The driver never republishes cached cloud or IMU data. If input stops, the outpu
 
 - Phase 2 requires `use_system_timestamp=true`. Setting it false fails parameter validation before SDK initialization because the wrapper has no hardware-clock-to-ROS-time conversion.
 - PointCloud2 uses `PointCloudUnitree.stamp`. In the checked-in SDK utility, `use_system_timestamp=true` derives cloud-start time from `CLOCK_REALTIME` minus scan period. The precompiled SDK implementation remains opaque.
-- IMU uses `LidarImuData.info.stamp`. The wrapper represents it as ROS system time under the required configuration, but the public SDK does not establish how the precompiled implementation produces or synchronizes this IMU stamp; hardware validation remains required.
+- IMU uses `LidarImuData.info.stamp`. The wrapper represents it as ROS system time under the required configuration, but the public SDK does not establish how the precompiled implementation produces or synchronizes this IMU stamp; physical publication passed, but external-reference timestamp accuracy and synchronization were not measured.
 - The dynamic IMU TF uses exactly the same header timestamp as its IMU message.
 - The static transform is sent once with node time through `/tf_static`; its geometry does not change.
 - Invalid timestamps are dropped. No clock-domain reconciliation or message-filter synchronization is provided.
@@ -113,18 +117,40 @@ Default sensor-only tree:
 
 ```text
 unilidar_imu_initial
-`-- unilidar_imu       dynamic on /tf; zero translation, SDK IMU quaternion
+`-- unilidar_imu       dynamic on /tf; zero translation, project-mapped IMU quaternion
     `-- unilidar_lidar static on /tf_static; configurable code-inherited extrinsic
 ```
 
 | Parent | Child | Ownership | Geometry and time |
 |---|---|---|---|
-| `initial_imu_frame` | `imu_frame` | Dynamic `TransformBroadcaster`, enabled by `publish_imu_tf` | Zero translation and the same normalized `x,y,z,w` quaternion/timestamp published in the IMU message |
+| `initial_imu_frame` | `imu_frame` | Dynamic `TransformBroadcaster`, enabled by `publish_imu_tf` | Zero translation and exactly the same normalized `SDK [1,2,3,0] -> ROS (x,y,z,w)` quaternion and timestamp published in the IMU message |
 | `imu_frame` | `cloud_frame` | `StaticTransformBroadcaster`, enabled by `publish_imu_to_lidar_tf` | Configurable translation and normalized quaternion sent once |
 
 The default tree gives each child one parent. Parameter validation rejects duplicate default sensor-frame identities. The default configuration does not publish `base_link`, `odom`, or another robot-to-sensor transform. The code-inherited IMU-to-LiDAR translation is preserved for compatibility and parameterized; it is not upgraded to a measured physical fact.
 
-The dynamic initial-IMU transform remains available for legacy compatibility. Its array order, normalization, message/TF equality, and timestamp equality are source-verified, but its physical orientation semantics remain unverified: Phase 2 has not established the SDK quaternion's physical reference-frame direction, sign convention, or whether `initial_imu_frame -> imu_frame` is the physically correct parent-child interpretation.
+The dynamic initial-IMU transform remains available for legacy compatibility. The original upright planar-rotation test exposed the direct-order defect, and the corrected physical retest passed: the tested binary's `[1,2,3,0]` mapping reported an approximately 90-degree clockwise floor rotation almost entirely around `-Z`. The same corrected normalized quaternion was observed in the IMU message and dynamic TF. This verifies the project component mapping and tested planar direction; it does not establish globally referenced heading, arbitrary 3D orientation accuracy, or whether `initial_imu_frame -> imu_frame` is the physically correct interpretation for every downstream consumer.
+
+### Recorded IMU quaternion interpretation evidence
+
+The tests used a Raspberry Pi 4 with Ubuntu 22.04.5, ROS 2 Humble, Linux `aarch64`, `ROS_DOMAIN_ID=10`, and a physical Unitree L2 over UDP (`192.168.1.2:6201` host destination and `192.168.1.62:6101` LiDAR source). The sensor was upright on top of the robot with its cable outlet toward robot rear, so LiDAR `+X` was approximately robot-forward and `+Z` approximately robot-up. The exact firmware revision was not identified.
+
+The four raw SDK-array values were preserved without relabeling:
+
+| Position | Physical placement | SDK array `[0,1,2,3]` |
+|---|---|---|
+| A | Stationary initial pose | `[0.997174387762017, 0.008492527327408243, -0.020583866863103248, 0.0717455350248493]` |
+| B | After approximately 90 degrees clockwise on the floor, viewed from above | `[0.7007950813342897, 0.00004620316598751915, -0.02780864177532758, -0.712820406052987]` |
+
+Directly treating those arrays as ROS `(x,y,z,w)` produced an approximately `99.18` degree relative rotation around `[0.9992, 0.0254, -0.0296]`, which failed the physical test because it appeared almost entirely around `+X`. Reordering them as `SDK [1,2,3,0] -> ROS (x,y,z,w)` produced Position A roll/pitch/yaw of approximately `(+0.80, -2.42, +8.21)` degrees, Position B of approximately `(+2.28, -2.23, -91.02)` degrees, and a `99.18` degree relative rotation around `[0.0141, -0.0095, -0.9999]`. That result motivated the project correction, while the direct mapping remains a validator negative control.
+
+The corrected binary was then rebuilt and physically retested:
+
+| Position | Published corrected ROS quaternion `(x,y,z,w)` | Approximate roll/pitch/yaw |
+|---|---|---|
+| A | `[0.009059164131498416, -0.031178789865725306, -0.12216226094401264, 0.9919789295185631]` | `(+1.47, -3.41, -14.09)` degrees |
+| B | `[-0.0036949123342495515, -0.03330593011191569, -0.7866761503106011, 0.6164557544339373]` | `(+2.76, -2.69, -103.90)` degrees |
+
+The corrected relative rotation was approximately `89.755` degrees around `[0.01589, -0.00884, -0.99983]`. This is a physical PASS for the tested planar mapping. The focused validator preserves both final samples and the initial failed/direct negative control.
 
 After a robot mounting measurement is recorded, a reviewed parameter file may instead set `publish_imu_tf=false`, `publish_robot_to_imu_tf=true`, a confirmed `robot_frame`, and all seven `robot_to_imu.*` values. The node will then publish this rigid tree:
 
@@ -139,9 +165,10 @@ All seven measured-only parameters are conditionally declared without numeric de
 ### Failure, shutdown, resources, and SDK selection
 
 - Failed parameter validation or SDK initialization terminates with status 1 instead of starting publishers against a failed transport.
-- A negative `runParse()` result and getter/data-validation failures are logged at most once per five seconds per call site.
+- A negative `runParse()` result and data-validation failures are logged at most once per five seconds per call site. A point indication that does not yield a cloud is debug-throttled while a valid cloud has been published in the preceding five seconds; it becomes a warning when no valid cloud has been published recently. This changes only the severity of the diagnostic and does not alter SDK packet parsing or cloud conversion.
 - Driver destruction cancels the poll timer and calls `closeSerial()` or `closeUDP()` for the selected initialized transport; a `false` return is logged. The public SDK exposes neither a destroy function nor a virtual base destructor, so the reader allocation is process-lifetime rather than deleted unsafely through the abstract base pointer.
 - Driver exit triggers launch shutdown, including optional RViz.
+- **Verified on the tested Pi:** with the validated Ethernet profile active, clean driver shutdown/relaunch immediately restored cloud publication at approximately 11.95 Hz and IMU publication at approximately 251.4 Hz. An already-running driver also resumed automatically after the physical Ethernet link and route were restored, without parser changes or a process restart.
 - CMake supports only Linux `aarch64` and `x86_64`, selects `../unitree_lidar_sdk/lib/${CMAKE_SYSTEM_PROCESSOR}/libunilidar_sdk2.a`, links `Threads::Threads`, and writes the absolute selection to the build-tree `unitree_sdk_library.txt`.
 - Launch, config, and RViz resources install under `share/unitree_lidar_ros2/{launch,config,rviz}`. The executable statically links the selected vendor archive, so runtime does not depend on a source-tree SDK path.
 
@@ -184,6 +211,8 @@ The installed default YAML supplies the effective root-namespace topic/frame def
 
 The repository helper passes all launch overrides through, so `./run_lidar.sh use_rviz:=true` is equivalent after prerequisite checks. Launch never reconfigures a host Ethernet interface.
 
+The tested Pi uses a machine-level NetworkManager profile named `lidar-phase2-test` on `eth0`, with manual `192.168.1.2/24`, `ipv4.never-default=yes`, IPv6 disabled, autoconnect enabled, and autoconnect priority 100. The inherited DHCP-based `netplan-eth0` profile has autoconnect disabled. This keeps `wlan0` as the default route while dedicating `eth0` to the LiDAR subnet. The repository does not create, manage, or provision this profile.
+
 ## Recovered historical behavior
 
 The recovered Pi used:
@@ -196,14 +225,17 @@ and an external `pointcloud_to_laserscan` process consumed `/unilidar/cloud` wit
 
 Before Phase 2, launch always started RViz, direct execution used reversed UDP IP defaults, the constructor node name was misspelled, failed SDK initialization was ignored, IMU was fetched twice, the TF quaternion order differed from the IMU message, the constant IMU-to-LiDAR transform was sent dynamically, and shutdown did not close the selected transport.
 
-## Unverified hardware assumptions
+## Physical results and remaining limitations
 
-- The checked-in software is Unitree SDK2 version 2.0.9 from the L2-family software lineage, but the exact physical robot LiDAR model, hardware version, firmware version, supported transport, deployed work mode, and compatibility are unconfirmed until inspected.
-- The default IP addresses, ports, serial path, baud rate, range bounds, cloud aggregation, and polling interval have not been validated on the current physical robot.
-- The SDK quaternion's physical reference convention and sign, IMU units, timestamp domains, measured publish rates, reconnect behavior, and packet-loss behavior are unverified.
+- The checked-in software is Unitree SDK2 version 2.0.9 from the L2-family software lineage, and the tested physical sensor is identified as a Unitree L2. The exact hardware and firmware revisions remain unconfirmed.
+- UDP communication passed with LiDAR `192.168.1.62:6101` and Pi `192.168.1.2:6201`. Repeated cloud and IMU publication, clean restart, live route restoration, automatic cable reconnect, and post-reboot operation passed with the validated machine-level NetworkManager profile. Serial transport was not tested.
+- The corrected project SDK-array mapping passed the recorded planar-rotation retest. Globally referenced heading, arbitrary 3D orientation accuracy, IMU units, external-reference timestamp accuracy, and quantified packet-loss/endurance limits remain unverified.
 - The code-inherited IMU-to-LiDAR translation and identity rotation have no checked-in measurement or vendor-document provenance. Their physical correctness must be confirmed before use as experimental evidence.
 - No LiDAR/IMU mounting transform to `base_link` is known or published by the default configuration. A disabled measured-transform hook is available, but it has no numeric defaults and must not be enabled until the actual robot frame and all seven extrinsic values have measurement provenance. Adding an identity transform merely to connect TF would conceal the missing measurement and is prohibited.
-- No successful initialization, communication, cloud, IMU, TF, RViz, shutdown, reconnection, or post-reboot result is claimed by static validation.
+- The configured `unilidar_imu -> unilidar_lidar` static TF was observed with rounded translation `[0.008, 0.015, -0.007]` and identity rotation, passing the static publication contract. That observation is not a physical measurement of the extrinsic.
+- Optional RViz display was not physically inspected and is not a Phase 2 completion requirement. Repository-managed network provisioning and complete robot automatic bring-up remain later deployment work.
+
+The sanitized final measurements and resilience observations are recorded in [`../verification/artifacts/phase2-final-physical-resilience_2026-08-20.log`](../verification/artifacts/phase2-final-physical-resilience_2026-08-20.log).
 
 The exact Phase 2 physical acceptance commands and recording requirements are maintained in [`../verification/test_matrix.md`](../verification/test_matrix.md#phase-2-pilidar-acceptance-procedure).
 

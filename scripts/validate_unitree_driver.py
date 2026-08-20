@@ -6,6 +6,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -86,12 +87,144 @@ EXPECTED_VENDOR_HASHES = {
     'x86_64': 'a8530545cbd435e3a96b9a099cd57921202aed3d690066f55ea0ade4310212d3',
 }
 
+HARDWARE_QUATERNION_POSITION_A = (
+    0.997174387762017,
+    0.008492527327408243,
+    -0.020583866863103248,
+    0.0717455350248493,
+)
+HARDWARE_QUATERNION_POSITION_B = (
+    0.7007950813342897,
+    0.00004620316598751915,
+    -0.02780864177532758,
+    -0.712820406052987,
+)
+CORRECTED_HARDWARE_QUATERNION_POSITION_A = (
+    0.009059164131498416,
+    -0.031178789865725306,
+    -0.12216226094401264,
+    0.9919789295185631,
+)
+CORRECTED_HARDWARE_QUATERNION_POSITION_B = (
+    -0.0036949123342495515,
+    -0.03330593011191569,
+    -0.7866761503106011,
+    0.6164557544339373,
+)
+
 errors: list[str] = []
 
 
 def require(condition: bool, message: str) -> None:
     if not condition:
         errors.append(message)
+
+
+def normalize_quaternion(quaternion: tuple[float, float, float, float]) -> tuple[float, ...]:
+    norm = math.sqrt(sum(component * component for component in quaternion))
+    return tuple(component / norm for component in quaternion)
+
+
+def project_sdk_quaternion(sdk: tuple[float, float, float, float]) -> tuple[float, ...]:
+    return normalize_quaternion((sdk[1], sdk[2], sdk[3], sdk[0]))
+
+
+def multiply_quaternions(
+    left: tuple[float, ...],
+    right: tuple[float, ...],
+) -> tuple[float, ...]:
+    lx, ly, lz, lw = left
+    rx, ry, rz, rw = right
+    return (
+        lw * rx + lx * rw + ly * rz - lz * ry,
+        lw * ry - lx * rz + ly * rw + lz * rx,
+        lw * rz + lx * ry - ly * rx + lz * rw,
+        lw * rw - lx * rx - ly * ry - lz * rz,
+    )
+
+
+def relative_axis_angle(
+    first: tuple[float, ...],
+    second: tuple[float, ...],
+) -> tuple[float, tuple[float, float, float]]:
+    inverse_first = (-first[0], -first[1], -first[2], first[3])
+    relative = normalize_quaternion(multiply_quaternions(second, inverse_first))
+    if relative[3] < 0.0:
+        relative = tuple(-component for component in relative)
+    angle = 2.0 * math.acos(max(-1.0, min(1.0, relative[3])))
+    scale = math.sin(angle / 2.0)
+    axis = tuple(component / scale for component in relative[:3])
+    return math.degrees(angle), axis
+
+
+def quaternion_rpy_degrees(quaternion: tuple[float, ...]) -> tuple[float, float, float]:
+    x, y, z, w = quaternion
+    roll = math.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y))
+    pitch_term = max(-1.0, min(1.0, 2.0 * (w * y - z * x)))
+    pitch = math.asin(pitch_term)
+    yaw = math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+    return tuple(math.degrees(value) for value in (roll, pitch, yaw))
+
+
+def validate_hardware_quaternion_regression() -> None:
+    corrected_a = project_sdk_quaternion(HARDWARE_QUATERNION_POSITION_A)
+    corrected_b = project_sdk_quaternion(HARDWARE_QUATERNION_POSITION_B)
+    rpy_a = quaternion_rpy_degrees(corrected_a)
+    rpy_b = quaternion_rpy_degrees(corrected_b)
+    angle, axis = relative_axis_angle(corrected_a, corrected_b)
+
+    require(
+        all(abs(actual - expected) < 0.15 for actual, expected in zip(
+            rpy_a, (0.80, -2.42, 8.21)
+        )),
+        f'hardware Position A reordered RPY changed: {rpy_a}',
+    )
+    require(
+        all(abs(actual - expected) < 0.15 for actual, expected in zip(
+            rpy_b, (2.28, -2.23, -91.02)
+        )),
+        f'hardware Position B reordered RPY changed: {rpy_b}',
+    )
+    require(abs(angle - 99.18) < 0.15, f'hardware relative angle changed: {angle}')
+    require(
+        abs(axis[0]) < 0.03 and abs(axis[1]) < 0.03 and axis[2] < -0.999,
+        f'hardware relative axis is not predominantly -Z: {axis}',
+    )
+
+    direct_a = normalize_quaternion(HARDWARE_QUATERNION_POSITION_A)
+    direct_b = normalize_quaternion(HARDWARE_QUATERNION_POSITION_B)
+    _, direct_axis = relative_axis_angle(direct_a, direct_b)
+    require(
+        direct_axis[0] > 0.99 and abs(direct_axis[2]) < 0.05,
+        f'direct-mapping negative control no longer exposes the +X defect: {direct_axis}',
+    )
+
+    final_a = normalize_quaternion(CORRECTED_HARDWARE_QUATERNION_POSITION_A)
+    final_b = normalize_quaternion(CORRECTED_HARDWARE_QUATERNION_POSITION_B)
+    final_rpy_a = quaternion_rpy_degrees(final_a)
+    final_rpy_b = quaternion_rpy_degrees(final_b)
+    final_angle, final_axis = relative_axis_angle(final_a, final_b)
+    require(
+        all(abs(actual - expected) < 0.15 for actual, expected in zip(
+            final_rpy_a, (1.47, -3.41, -14.09)
+        )),
+        f'corrected hardware Position A RPY changed: {final_rpy_a}',
+    )
+    require(
+        all(abs(actual - expected) < 0.15 for actual, expected in zip(
+            final_rpy_b, (2.76, -2.69, -103.90)
+        )),
+        f'corrected hardware Position B RPY changed: {final_rpy_b}',
+    )
+    require(
+        abs(final_angle - 89.755) < 0.15,
+        f'corrected hardware relative angle changed: {final_angle}',
+    )
+    require(
+        abs(final_axis[0]) < 0.03 and abs(final_axis[1]) < 0.03 and
+        final_axis[2] < -0.999,
+        f'corrected hardware relative axis is not predominantly -Z: {final_axis}',
+    )
 
 
 def load_json_parameter_file() -> dict[str, Any]:
@@ -302,6 +435,12 @@ def parse_source_contract(parameters: dict[str, Any]) -> None:
             required_parameters == REQUIRED_WHEN_ROBOT_TF_ENABLED,
         'IMU and dynamic TF share stamp': 'transform.header.stamp = message.header.stamp;' in source,
         'IMU and dynamic TF share quaternion': 'transform.transform.rotation = quaternion;' in source,
+        'healthy cloud freshness tracked':
+            'last_valid_cloud_time_' in source and 'has_published_valid_cloud_' in source,
+        'healthy intermittent point indication is not warned':
+            'RCLCPP_DEBUG_THROTTLE' in source and 'while valid clouds remain fresh' in source,
+        'stale missing cloud remains warned':
+            'no valid cloud was published recently' in source,
         'cloud frame assigned': 'message.header.frame_id = cloud_frame_;' in source,
         'IMU frame assigned': 'message.header.frame_id = imu_frame_;' in source,
         'PointCloud2 dimensions explicit': 'pcl_cloud->height = 1U;' in source,
@@ -336,8 +475,8 @@ def parse_source_contract(parameters: dict[str, Any]) -> None:
         )
     }
     require(
-        quaternion_indices == {'x': 0, 'y': 1, 'z': 2, 'w': 3},
-        f'IMU quaternion order is not x,y,z,w: {quaternion_indices}',
+        quaternion_indices == {'x': 1, 'y': 2, 'z': 3, 'w': 0},
+        f'IMU quaternion mapping is not the hardware-supported [1,2,3,0] projection: {quaternion_indices}',
     )
 
 
@@ -371,7 +510,8 @@ def validate_build_and_resources() -> None:
         contract_text = contract.read_text(encoding='utf-8')
         for statement in (
             'YAML configuration is authoritative',
-            'physical orientation semantics remain unverified',
+            'corrected physical retest passed',
+            'vendor sources are internally inconsistent',
             'SDK2 software lineage targets the Unitree L2 family',
         ):
             require(statement in contract_text, f'contract statement is missing: {statement}')
@@ -412,6 +552,7 @@ def main() -> int:
     parameters = load_json_parameter_file()
     parse_launch_contract()
     parse_source_contract(parameters)
+    validate_hardware_quaternion_regression()
     validate_build_and_resources()
     validate_vendor_archives()
 
@@ -425,7 +566,8 @@ def main() -> int:
         'PASS: validated 30 Unitree defaults plus 7 measured-only TF parameters, '
         'SDK2 work-mode/timestamp restrictions, YAML-authoritative launch precedence, '
         'headless/optional-RViz launch, '
-        'topic/frame/TF/QoS source invariants, installed resources, SDK architecture selection, '
+        'initial/final hardware-sample quaternion mapping, topic/frame/TF/QoS source invariants, '
+        'installed resources, SDK architecture selection, '
         'and unchanged aarch64/x86_64 vendor archives.'
     )
     return 0
