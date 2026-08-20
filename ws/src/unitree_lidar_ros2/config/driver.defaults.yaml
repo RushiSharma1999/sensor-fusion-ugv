@@ -1,0 +1,36 @@
+{
+  "/**": {
+    "ros__parameters": {
+      "initialize_type": 2,
+      "work_mode": 0,
+      "use_system_timestamp": true,
+      "range_min": 0.0,
+      "range_max": 100.0,
+      "cloud_scan_num": 18,
+      "serial_port": "/dev/ttyACM0",
+      "baudrate": 4000000,
+      "lidar_port": 6101,
+      "lidar_ip": "192.168.1.62",
+      "local_port": 6201,
+      "local_ip": "192.168.1.2",
+      "cloud_frame": "unilidar_lidar",
+      "cloud_topic": "unilidar/cloud",
+      "imu_frame": "unilidar_imu",
+      "imu_topic": "unilidar/imu",
+      "initial_imu_frame": "unilidar_imu_initial",
+      "publish_imu_tf": true,
+      "publish_imu_to_lidar_tf": true,
+      "publish_robot_to_imu_tf": false,
+      "robot_frame": "",
+      "imu_to_lidar.translation.x": 0.007698,
+      "imu_to_lidar.translation.y": 0.014655,
+      "imu_to_lidar.translation.z": -0.00667,
+      "imu_to_lidar.rotation.x": 0.0,
+      "imu_to_lidar.rotation.y": 0.0,
+      "imu_to_lidar.rotation.z": 0.0,
+      "imu_to_lidar.rotation.w": 1.0,
+      "qos_depth": 10,
+      "poll_interval_ms": 1
+    }
+  }
+}

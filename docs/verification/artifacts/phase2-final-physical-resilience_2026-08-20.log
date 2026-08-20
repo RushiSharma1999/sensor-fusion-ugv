@@ -1,0 +1,297 @@
+# Sanitized Phase 2 final physical and resilience evidence
+
+Results reported: 2026-08-20
+Branch: fix/02-unitree-driver-and-tf
+Tested state: uncommitted Phase 2 quaternion correction working tree atop 543a218150245eaac8ebfbefc0cc928ebebdd905
+Artifact type: sanitized summary of operator-supplied physical results; original terminal transcripts were not supplied in this workspace
+
+Evidence IDs summarized:
+- LIDAR-SW-001-R05: final Mac-side closeout validation
+- LIDAR-SW-002-R02: corrected ARM64/Humble focused verifier
+- IMU-ORIENT-001-R02: corrected physical quaternion retest
+- LIDAR-PUB-001-R01: cloud and IMU publication contract
+- TF-SENSOR-001-R01: sensor-internal TF publication contract
+- LIDAR-RESTART-001-R01: clean driver shutdown and restart
+- LIDAR-NET-001-R01: machine-level LiDAR Ethernet configuration and live recovery
+- LIDAR-RECONNECT-001-R01: physical cable disconnect/reconnect recovery
+- LIDAR-REBOOT-001-R01: persistent network and driver operation after Pi reboot
+
+## Hardware and runtime environment
+
+- Raspberry Pi 4
+- Ubuntu 22.04.5 LTS
+- Linux aarch64
+- ROS 2 Humble
+- ROS_DOMAIN_ID=10
+- physical Unitree L2 LiDAR
+- exact LiDAR firmware revision: unconfirmed
+- LiDAR mounted upright on top of the robot
+- LiDAR cable exit toward robot rear
+- LiDAR +X approximately robot-forward
+- LiDAR +Z approximately robot-up
+- LiDAR Ethernet IPv4: 192.168.1.62
+- Pi LiDAR Ethernet IPv4: 192.168.1.2/24 on eth0
+- UDP source: 192.168.1.62:6101
+- UDP destination: 192.168.1.2:6201
+
+No /scan, navigation, fusion, command, motor, or autonomous behavior was part of these results.
+
+## Corrected ARM64/Humble focused verifier
+
+Observed status:
+
+PHASE2_QUAT_BUILD_STATUS=0
+
+Observed summary:
+
+PASS: Phase 2 Unitree clean build, ARM64 SDK link, installed resources, package tests, executable discovery, and pre-SDK invalid-configuration rejection completed without starting hardware.
+
+Conclusion: PASS for the corrected focused build gate. The verifier selects and links the checked-in aarch64 Unitree archive. As recorded by the earlier focused-gate evidence, package-specific `colcon test` discovers zero tests; the successful command is not evidence of Unitree unit-test coverage. The strict whole-workspace gate remains separately failed on inherited non-Unitree Flake8/PEP257 debt.
+
+## Corrected physical quaternion retest
+
+Canonical project mapping retained by the tested wrapper:
+
+ROS x = SDK quaternion[1]
+ROS y = SDK quaternion[2]
+ROS z = SDK quaternion[3]
+ROS w = SDK quaternion[0]
+
+The wrapper normalizes this reordered quaternion once and supplies the same result to `sensor_msgs/msg/Imu.orientation` and the dynamic `unilidar_imu_initial -> unilidar_imu` TF.
+
+Corrected Position A, robot/sensor stationary:
+
+x = 0.009059164131498416
+y = -0.031178789865725306
+z = -0.12216226094401264
+w = 0.9919789295185631
+
+Corresponding TF roll/pitch/yaw:
+
+roll = approximately +1.47 degrees
+pitch = approximately -3.41 degrees
+yaw = approximately -14.09 degrees
+
+Corrected Position B, after approximately 90 degrees clockwise on the floor when viewed from above:
+
+x = -0.0036949123342495515
+y = -0.03330593011191569
+z = -0.7866761503106011
+w = 0.6164557544339373
+
+Corresponding TF roll/pitch/yaw:
+
+roll = approximately +2.76 degrees
+pitch = approximately -2.69 degrees
+yaw = approximately -103.90 degrees
+
+Computed relative rotation, Position B times inverse(Position A):
+
+angle = approximately 89.755 degrees
+axis x = approximately 0.01589
+axis y = approximately -0.00884
+axis z = approximately -0.99983
+
+Conclusion: PASS. The corrected physical binary reports the clockwise planar rotation almost entirely around robot/LiDAR -Z, consistent with the documented upright mounting. This closes the component-order defect recorded by IMU-ORIENT-001-R01. The test verifies the project mapping and tested planar direction; it does not establish a globally referenced heading, arbitrary 3D orientation accuracy, or the physical correctness of `initial_imu_frame -> imu_frame` for every downstream interpretation.
+
+## Real sensor publication observations
+
+Repeated observed rates:
+
+- `/unilidar/cloud`: approximately 11.94 to 11.97 Hz
+- `/unilidar/imu`: approximately 249 to 252 Hz
+
+Observed cloud widths:
+
+5107, 5129, 5152, 5155, 5164, 5221, 5252
+
+Observed PointCloud2 structure:
+
+- height = 1
+- width generally approximately 5100 to 5300 points
+- point_step = 32
+- fields = x, y, z, intensity, ring, time
+- is_dense = false
+- frame_id = unilidar_lidar
+
+Observed IMU structure:
+
+- frame_id = unilidar_imu
+- orientation uses the corrected normalized quaternion
+- dynamic TF uses the same corrected normalized quaternion
+
+Conclusion: PASS for repeated physical publication and the Phase 2 message/frame contract at the observed rates and sizes. These measurements are observations, not guaranteed performance bounds. They do not by themselves verify every point's numeric accuracy, timestamp accuracy against an external reference, packet-loss limits, or long-duration endurance.
+
+## Sensor-internal static TF
+
+Verified TF:
+
+unilidar_imu -> unilidar_lidar
+
+Configured translation in metres:
+
+x = 0.007698
+y = 0.014655
+z = -0.006670
+
+Observed rounded `tf2_echo` translation:
+
+[0.008, 0.015, -0.007]
+
+Configured and observed rotation:
+
+identity quaternion
+
+Conclusion: PASS for publication of the configured static sensor-internal TF contract. This confirms that the expected configured values are present on TF; it is not metrology proving that the code-inherited translation is the physical IMU-to-LiDAR extrinsic. Measured `base_link ->` sensor extrinsics remain outside the Phase 2 completion gate and must not be fabricated.
+
+## Apparent restart failure: network root cause
+
+Initial observation after an attempted restart:
+
+- ROS node existed
+- cloud and IMU publishers existed
+- UDP port 6201 was bound
+- no cloud or IMU messages arrived
+
+Diagnostics:
+
+- `tcpdump` showed thousands of packets from `192.168.1.62:6101` to `192.168.1.2:6201`
+- kernel packet drops were zero
+- `strace` showed the Unitree UDP socket repeatedly returning `EAGAIN`
+- ROS DDS sockets remained active
+
+Machine-level root cause:
+
+- inherited NetworkManager profile `netplan-eth0` used `ipv4.method=auto`, DHCP, and autoconnect
+- the direct LiDAR Ethernet link provides no DHCP service
+- eth0 could retain physical carrier while losing `192.168.1.2/24`
+- Linux then selected the Wi-Fi default route for `192.168.1.62`
+- a temporary manual `ip address` was not durable while NetworkManager controlled eth0
+
+Conclusion: the apparent failure was caused by missing Pi IPv4/interface routing configuration, not the Unitree SDK, parser, or ROS wrapper. It must not be recorded as a driver restart defect.
+
+## Validated Pi machine-level NetworkManager configuration
+
+Dedicated connection profile:
+
+connection name = lidar-phase2-test
+interface = eth0
+ipv4.method = manual
+ipv4.addresses = 192.168.1.2/24
+ipv4.never-default = yes
+ipv6.method = disabled
+connection.autoconnect = yes
+connection.autoconnect-priority = 100
+
+Inherited profile adjustment:
+
+netplan-eth0 connection.autoconnect = no
+
+Resulting ownership:
+
+- wlan0 remains the default route for SSH and Internet access
+- eth0 is dedicated to the 192.168.1.0/24 LiDAR subnet
+
+This is validated machine configuration on the tested Pi. The repository does not create, own, or provision this NetworkManager profile.
+
+## Live network recovery while the driver remained running
+
+With the existing Unitree ROS process running but not receiving messages, activation of the correct NetworkManager profile immediately produced:
+
+route = 192.168.1.62 dev eth0 src 192.168.1.2
+ping = 3/3 replies, approximately 0.14 to 0.17 ms
+cloud = approximately 11.95 Hz
+IMU = approximately 251.6 Hz
+cloud width = 5129
+
+The ROS node was not restarted. Conclusion: PASS for live publication recovery when the required host IPv4 route is restored, and confirmation that the earlier symptom was network configuration rather than parser failure.
+
+## Clean driver shutdown and restart
+
+With the correct Ethernet profile active:
+
+- the driver was stopped cleanly
+- the driver was relaunched
+- cloud publication immediately returned at approximately 11.95 Hz
+- IMU publication immediately returned at approximately 251.4 Hz
+- observed cloud width was 5107
+
+Conclusion: PASS for clean Unitree driver shutdown and restart under the validated network configuration.
+
+## Physical Ethernet disconnect and reconnect
+
+Before disconnect:
+
+- eth0 connected
+- `lidar-phase2-test` active
+- route to 192.168.1.62 through eth0
+- cloud approximately 11.95 Hz
+
+On cable removal:
+
+- eth0 reported NO-CARRIER
+- cloud publication stopped as expected
+
+The first reconnect attempt selected `netplan-eth0` because `lidar-phase2-test` still had autoconnect disabled. DHCP failed, `192.168.1.2` disappeared, and the LiDAR route moved to wlan0. This was a machine-profile selection failure, not a driver failure.
+
+After setting `lidar-phase2-test` autoconnect to yes with priority 100 and disabling autoconnect for `netplan-eth0`, the test was repeated. On unplug/replug:
+
+- eth0 automatically recovered carrier
+- NetworkManager automatically selected `lidar-phase2-test`
+- 192.168.1.2/24 automatically returned
+- route became `192.168.1.62 dev eth0 src 192.168.1.2`
+- ping passed at approximately 0.15 ms
+- the same already-running driver resumed publication
+- cloud returned at approximately 11.95 Hz
+- IMU returned at approximately 251 Hz
+
+Conclusion: PASS for automatic physical Ethernet disconnect/reconnect recovery with the validated Pi profile. The driver becomes silent while transport is unavailable and resumes from the existing process when the route returns.
+
+## Pi reboot persistence
+
+After reboot, no manual `ip addr add`, `ip route add`, or `nmcli connection up` command was run.
+
+Observed network restoration:
+
+- active profile `lidar-phase2-test` on eth0
+- IPv4 192.168.1.2/24
+- route `192.168.1.62 dev eth0 src 192.168.1.2`
+- ping 3/3 successful, approximately 0.149 ms average
+
+After sourcing the corrected focused build and launching the Unitree driver:
+
+- `/unilidar/cloud` approximately 11.95 to 11.97 Hz
+- `/unilidar/imu` approximately 249 to 250 Hz
+- observed cloud width 5152
+
+Conclusion: PASS for persistent LiDAR Ethernet configuration across reboot, automatic network restoration, driver operation after reboot, and cloud/IMU publication after reboot. Complete repository-managed robot bring-up remains a later deployment phase; the driver was launched after sourcing the focused build.
+
+## Phase 2 closeout boundary
+
+Passed within Phase 2:
+
+- corrected ARM64/Humble focused clean build and link gate
+- checked-in aarch64 SDK archive selection
+- installed resources, launch argument parsing, executable discovery, and pre-SDK invalid-configuration rejection
+- physical Unitree L2 UDP communication using the recorded addresses and ports
+- corrected planar quaternion orientation and IMU/dynamic-TF equality
+- repeated cloud and IMU publication with the recorded structure, rates, and sizes
+- configured sensor-internal static TF publication
+- clean driver shutdown and restart
+- live recovery after host network restoration
+- automatic physical Ethernet disconnect/reconnect recovery
+- persistent machine-level Ethernet configuration and successful driver operation after Pi reboot
+
+Not established or explicitly outside the Phase 2 completion gate:
+
+- exact LiDAR firmware revision
+- measured `base_link ->` LiDAR/IMU extrinsics
+- physical metrology of the code-inherited IMU-to-LiDAR translation
+- external-reference timestamp accuracy or clock synchronization
+- arbitrary 3D/global-heading semantics beyond the tested planar rotation
+- serial transport
+- RViz visual inspection; RViz remains optional
+- repository-managed NetworkManager provisioning or complete robot automatic bring-up
+- fresh-image Phase 1 dependency/clone/reboot reproducibility
+- passing strict whole-workspace tests after unrelated inherited Python lint cleanup
+- `/scan`, navigation, fusion, command, motor, or autonomy behavior

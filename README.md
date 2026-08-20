@@ -108,12 +108,13 @@ On the supported Ubuntu 22.04 ARM64 / ROS 2 Humble target with dependencies alre
 ./scripts/verify_build.sh
 ```
 
-The script checks the supported OS, architecture, Python, and ROS distribution; confirms all eleven source packages are visible to colcon; performs the static package audit; makes a clean build; checks that the Unitree wrapper link command references the checked-in ARM64 archive; runs `colcon test`; reports test results; and confirms all checked-in ROS console executables are discoverable. It does not open hardware devices or start any robot node.
+The script checks the supported OS, architecture, Python, and ROS distribution; confirms all eleven source packages are visible to colcon; performs the package and Unitree Phase 2 static audits; makes a clean build; checks that the Unitree wrapper link command references the checked-in ARM64 archive; verifies installed Unitree launch/config/RViz resources and parses launch arguments without starting the driver; runs `colcon test`; reports test results; and confirms all checked-in ROS console executables are discoverable. It does not open hardware devices or start any robot node.
 
 The ROS-independent static audit can also run on a development host without ROS:
 
 ```bash
 python3 scripts/validate_ros_packages.py
+python3 scripts/validate_unitree_driver.py
 ```
 
 For an explicit manual test sequence:
@@ -147,6 +148,7 @@ sensor-fusion-ugv/
 ├── run_lidar.sh
 ├── scripts/
 │   ├── validate_ros_packages.py
+│   ├── validate_unitree_driver.py
 │   └── verify_build.sh
 └── ws/
     └── src/
@@ -171,7 +173,7 @@ Runtime nodes require their configured LiDAR, serial, UART, and sensor interface
 
 The recovered runtime used `ROS_DOMAIN_ID=10`. That value is historical runtime configuration, not a compilation prerequisite, and Phase 1 does not modify a user's global shell startup files.
 
-After a successful build, `./run_lidar.sh` launches the Unitree ROS wrapper and RViz using the installed `launch/launch.py` and `rviz/view.rviz` resources. It requires the separately configured LiDAR connection. The current Unitree wrapper publishes `PointCloud2` and IMU data; it does not provide the planned robot-centric `/scan` integration.
+After a successful build, `./run_lidar.sh` launches the Unitree ROS wrapper headlessly using installed launch and parameter resources. It requires a separately configured LiDAR connection. Run `./run_lidar.sh use_rviz:=true` only when visualization is deliberate. The wrapper publishes `PointCloud2` and IMU data; it does not provide the planned robot-centric `/scan` integration. Its exact topics, frames, TF behavior, parameters, QoS, and evidence limits are defined in [`docs/interfaces/unitree_driver_tf_contract.md`](docs/interfaces/unitree_driver_tf_contract.md).
 
 ## Later deployment requirements
 

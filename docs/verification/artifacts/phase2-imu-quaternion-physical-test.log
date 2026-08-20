@@ -1,0 +1,120 @@
+# Sanitized Phase 2 physical IMU quaternion interpretation evidence
+
+Evidence ID: IMU-ORIENT-001-R01
+Date reported: 2026-08-17
+Branch: fix/02-unitree-driver-and-tf
+Tested direct-mapping commit: 543a218150245eaac8ebfbefc0cc928ebebdd905
+Result: FAIL for direct SDK[0,1,2,3] -> ROS (x,y,z,w) interpretation
+Correction status: SDK[1,2,3,0] -> ROS (x,y,z,w) implemented in an uncommitted working tree; corrected physical retest later passed as IMU-ORIENT-001-R02
+
+## Reported environment and physical arrangement
+
+- Raspberry Pi 4
+- Ubuntu 22.04.5 Jammy
+- Linux aarch64
+- ROS 2 Humble
+- physical Unitree LiDAR connected over UDP
+- Pi eth0: 192.168.1.2
+- LiDAR: 192.168.1.62
+- sensor upright
+- cable outlet toward robot rear
+- LiDAR +X approximately robot-forward
+- LiDAR +Z approximately robot-up
+- physical model at this initial test: not reported; later identified as Unitree L2
+- exact hardware revision and firmware: unconfirmed
+- complete launch command, parameter-file hash, and raw terminal transcript: not supplied
+- motor/safety state: not reported; no motor or motion-behavior claim is made
+
+The checked-in software is based on Unitree SDK2 version 2.0.9 for the L2-family software lineage. That lineage did not identify the sensor by itself; later physical closeout evidence separately identified the tested sensor as a Unitree L2.
+
+## Physical procedure
+
+1. Hold the robot/sensor stationary in Position A and record the four published values produced by the then-current direct mapping.
+2. Rotate the stationary robot/sensor approximately 90 degrees clockwise on the floor when viewed from above.
+3. Hold it stationary in Position B and record the four published values.
+4. Compare the relative rotation under the direct and reordered interpretations.
+
+## Preserved raw SDK-array values
+
+The old wrapper published these four SDK values directly as ROS x/y/z/w. They are retained here as raw SDK arrays so the corrected calculation does not relabel the source data.
+
+Position A:
+
+SDK[0] = 0.997174387762017
+SDK[1] = 0.008492527327408243
+SDK[2] = -0.020583866863103248
+SDK[3] = 0.0717455350248493
+
+Position B:
+
+SDK[0] = 0.7007950813342897
+SDK[1] = 0.00004620316598751915
+SDK[2] = -0.02780864177532758
+SDK[3] = -0.712820406052987
+
+## Failed direct interpretation
+
+Mapping:
+
+ROS x = SDK[0]
+ROS y = SDK[1]
+ROS z = SDK[2]
+ROS w = SDK[3]
+
+Relative rotation, Position B times inverse(Position A):
+
+angle = approximately 99.18 degrees
+axis = approximately [0.9992, 0.0254, -0.0296]
+
+This failed the physical test because the observed planar clockwise motion appeared almost entirely as a +X rotation.
+
+## Hardware-supported project interpretation
+
+Mapping:
+
+ROS x = SDK[1]
+ROS y = SDK[2]
+ROS z = SDK[3]
+ROS w = SDK[0]
+
+Position A roll/pitch/yaw:
+
+roll = approximately +0.80 degrees
+pitch = approximately -2.42 degrees
+yaw = approximately +8.21 degrees
+
+Position B roll/pitch/yaw:
+
+roll = approximately +2.28 degrees
+pitch = approximately -2.23 degrees
+yaw = approximately -91.02 degrees
+
+Relative rotation, Position B times inverse(Position A):
+
+angle = approximately 99.18 degrees
+axis = approximately [0.0141, -0.0095, -0.9999]
+
+This matches the physical clockwise planar rotation around robot/LiDAR -Z. It supports the array-to-component mapping. It does not by itself verify the quaternion's absolute reference frame, arbitrary 3D sign/direction semantics, the dynamic TF parent-child interpretation, or the static IMU-to-LiDAR extrinsic.
+
+## Vendor-source inconsistency
+
+- Checked-in SDK2 `include/example.h` labels `imu.quaternion[0..3]` as `(x,y,z,w)`.
+- The historical/upstream Unitree ROS IMU publisher assigns `[0,1,2,3]` directly to ROS `(x,y,z,w)`.
+- The historical/upstream Unitree dynamic TF assigns `[1,2,3,0]` to ROS `(x,y,z,w)`.
+- The physical test supports the dynamic-TF reordering, not the direct mapping.
+
+The vendor sources are therefore internally inconsistent; this artifact does not claim otherwise.
+
+## Coexisting point-cloud observation
+
+During this test, valid clouds were reported as publishing steadily at approximately 11.96 Hz while the driver repeatedly logged:
+
+Unitree SDK reported a point packet but did not return a point cloud
+
+Because valid output remained fresh, that recurring condition is not classified as a hardware failure or loss of cloud transport. The focused correction changes only diagnostic severity: an individual getter miss is debug-throttled while a valid cloud has been published recently and remains a warning when valid-cloud freshness is lost. SDK parsing and cloud conversion are unchanged. Later Phase 2 testing passed repeated cloud/IMU publication, clean restart, physical Ethernet reconnect, and post-reboot operation; external timestamp accuracy and long-duration performance limits remain unverified.
+
+## Subsequent corrected retest
+
+The corrected wrapper was rebuilt on ARM64/Humble and physically retested as `IMU-ORIENT-001-R02`. The new Position A/B samples produced an approximately 89.755-degree relative rotation around `[0.01589, -0.00884, -0.99983]`, and the IMU message and dynamic TF used the same corrected normalized quaternion. This passed the planar mapping test and did not regress to the direct-mapping `+X` result.
+
+The sanitized final samples, build result, publication measurements, networking root cause, restart, disconnect/reconnect, and reboot results are preserved in `docs/verification/artifacts/phase2-final-physical-resilience_2026-08-20.log`. The planar pass does not claim globally referenced heading, arbitrary 3D accuracy, or measured robot extrinsics.

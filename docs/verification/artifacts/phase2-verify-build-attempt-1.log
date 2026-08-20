@@ -1,0 +1,30 @@
+Phase 2 Raspberry Pi verification — attempt 1 (sanitized evidence summary)
+Date: 2026-08-17; exact run time was not supplied
+Source: preserved operator transcript named phase2-verify-build-attempt-1.log
+Repository state: uncommitted Phase 2 working tree atop 664bd9fd3e346b681d7b4b48e683936cdc79bfa3
+
+Environment reported by the operator:
+- Raspberry Pi 4
+- Ubuntu 22.04.5 Jammy
+- Linux aarch64
+- Python 3.10.12
+- ROS 2 Humble at /opt/ros/humble
+- isolated env -i Bash shell with no inherited ROS, AMENT, COLCON,
+  CMAKE_PREFIX_PATH, or PYTHONPATH state
+- no robot, LiDAR, serial, motor, or tmux processes running
+
+Command (private output directory sanitized):
+./scripts/verify_build.sh 2>&1 | tee <external-validation-dir>/phase2-verify-build-attempt-1.log
+
+Observed failure:
+/opt/ros/humble/setup.bash: line 8: AMENT_TRACE_SETUP_FILES: unbound variable
+
+Classification:
+BLOCKED before package discovery, compilation, linking, installation, tests,
+or installed-package checks. This result is BUILD-003-R04. It did not start
+hardware and did not establish any build or runtime pass.
+
+Sanitization note:
+This repository artifact retains only the operator-supplied environment,
+command, diagnostic, and classification. Machine-specific private paths and
+unavailable line-by-line transcript content are not reproduced or invented.

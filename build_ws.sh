@@ -5,9 +5,16 @@ echo "Building Sensor Fusion UGV ROS 2 workspace..."
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_DIR="${SCRIPT_DIR}/ws"
+UGV_SETUP_HELPER="${SCRIPT_DIR}/scripts/lib/source_setup.bash"
 UGV_ROS_DISTRO="humble"
 UGV_ROS_SETUP="/opt/ros/${UGV_ROS_DISTRO}/setup.bash"
 UGV_CLEAN_BUILD=false
+
+if [[ ! -f "${UGV_SETUP_HELPER}" ]]; then
+    echo "ERROR: Setup-source helper not found: ${UGV_SETUP_HELPER}" >&2
+    exit 1
+fi
+source "${UGV_SETUP_HELPER}"
 
 if [[ "${1:-}" == "--clean" ]]; then
     UGV_CLEAN_BUILD=true
@@ -30,7 +37,7 @@ if [[ -n "${ROS_DISTRO:-}" && "${ROS_DISTRO}" != "${UGV_ROS_DISTRO}" ]]; then
     echo "Open a clean shell before running this script; do not mix ROS distributions." >&2
     exit 1
 fi
-source "${UGV_ROS_SETUP}"
+source_setup_file "${UGV_ROS_SETUP}"
 
 if [[ "${ROS_DISTRO:-}" != "${UGV_ROS_DISTRO}" ]]; then
     echo "ERROR: Sourcing ${UGV_ROS_SETUP} did not select ROS 2 Humble." >&2

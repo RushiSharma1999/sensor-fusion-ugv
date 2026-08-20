@@ -1,0 +1,27 @@
+Phase 2 Raspberry Pi Unitree post-build checks (sanitized evidence summary)
+Date: 2026-08-17; exact run time was not supplied
+Source: preserved operator transcript named phase2-unitree-postbuild.log
+Repository state: corrected uncommitted Phase 2 working tree atop 664bd9fd3e346b681d7b4b48e683936cdc79bfa3
+
+Reported post-build conclusions:
+- unitree_lidar_ros2 compiled and linked successfully on ARM64/ROS 2 Humble
+- the link selected the checked-in aarch64 libunilidar_sdk2.a
+- installed launch, configuration, and RViz resources were present
+- launch --show-args completed without starting the driver
+- no unitree_lidar_ros2 test failure was reported
+- no robot, LiDAR, serial, motor, or tmux process was started
+
+Evidence boundary:
+The supplied summary does not establish physical LiDAR identification,
+transport initialization, sensor data, timestamps, TF physical semantics,
+shutdown, reconnect, networking, or any actuator behavior. The newly added
+scripts/verify_unitree_phase2.sh consolidates executable discovery and invalid
+initialize_type rejection into a repeatable target command. That consolidated
+command subsequently passed on the Raspberry Pi under LIDAR-SW-002-R01; its
+Unitree colcon test run discovered zero tests and therefore does not establish
+unit-test coverage.
+
+Sanitization note:
+This repository artifact is an evidence synopsis limited to facts supplied by
+the operator. Machine-specific private paths and unavailable line-by-line
+transcript content are not reproduced or invented.

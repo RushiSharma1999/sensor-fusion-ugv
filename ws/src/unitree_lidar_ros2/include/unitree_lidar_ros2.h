@@ -6,236 +6,111 @@
 
 #define BOOST_BIND_NO_PLACEHOLDERS
 
-#include <memory>
-#include "iostream"
-#include <string>
-#include <stdio.h>
-#include <iterator>
-#include <algorithm>
 #include <chrono>
+#include <cstdint>
+#include <memory>
+#include <string>
 
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
-#include <pcl_conversions/pcl_conversions.h>
-
-#include "sensor_msgs/msg/point_cloud2.hpp"
-#include "sensor_msgs/msg/imu.hpp"
-#include "std_msgs/msg/header.hpp"
-
-#include "rclcpp/rclcpp.hpp"
-#include "rclcpp/time.hpp"
-
-#include "tf2_ros/transform_broadcaster.h"
-#include "tf2/LinearMath/Quaternion.h"
+#include "geometry_msgs/msg/quaternion.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/imu.hpp"
+#include "sensor_msgs/msg/point_cloud2.hpp"
+#include "tf2_ros/static_transform_broadcaster.h"
+#include "tf2_ros/transform_broadcaster.h"
 
-// SDK
+// Checked-in Unitree SDK.
 #include "unitree_lidar_sdk_pcl.h"
-
-
-using std::placeholders::_1;
 
 class UnitreeLidarSDKNode : public rclcpp::Node
 {
 public:
-    explicit UnitreeLidarSDKNode(const rclcpp::NodeOptions &options = rclcpp::NodeOptions());
+  explicit UnitreeLidarSDKNode(
+    const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
 
-    ~UnitreeLidarSDKNode() {};
+  ~UnitreeLidarSDKNode() override;
 
-    void timer_callback();
+private:
+  enum class TransportMode : int
+  {
+    kSerial = 1,
+    kUdp = 2,
+  };
 
-protected:
-    // ROS
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_cloud_;
-    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr pub_imu_;
-    rclcpp::TimerBase::SharedPtr timer_;
-    std::shared_ptr<tf2_ros::TransformBroadcaster> broadcaster_;
+  void load_parameters();
+  void validate_parameters() const;
+  void initialize_driver();
+  void close_transport();
+  void publish_static_transforms();
+  void timer_callback();
+  void handle_imu_packet();
+  void handle_point_packet();
 
-    // Unitree Lidar Reader
-    UnitreeLidarReader *lsdk_;
+  bool normalized_imu_quaternion(
+    const LidarImuData & imu,
+    geometry_msgs::msg::Quaternion & quaternion) const;
+  bool imu_vectors_are_finite(const LidarImuData & imu) const;
+  bool frame_id_is_valid(const std::string & frame_id) const;
+  bool sdk_stamp_to_ros_time(
+    std::uint32_t seconds,
+    std::uint32_t nanoseconds,
+    rclcpp::Time & stamp) const;
+  bool cloud_stamp_to_ros_time(double seconds, rclcpp::Time & stamp) const;
 
-    // Config params
-    int work_mode_;
-    int initialize_type_;
-    int local_port_;
-    std::string local_ip_;
-    int lidar_port_;
-    std::string lidar_ip_;
-    std::string serial_port_;
-    int baudrate_;
-    
-    int cloud_scan_num_;
-    bool use_system_timestamp_;
-    double range_min_;
-    double range_max_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_cloud_;
+  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr pub_imu_;
+  rclcpp::TimerBase::SharedPtr timer_;
+  std::chrono::steady_clock::time_point last_valid_cloud_time_{};
+  bool has_published_valid_cloud_{false};
+  std::shared_ptr<tf2_ros::TransformBroadcaster> dynamic_tf_broadcaster_;
+  std::shared_ptr<tf2_ros::StaticTransformBroadcaster> static_tf_broadcaster_;
 
-    std::string cloud_frame_;
-    std::string cloud_topic_;
+  // The public vendor API has no destroy function or virtual destructor. The
+  // selected transport is closed explicitly; the process owns this allocation
+  // for its remaining lifetime.
+  UnitreeLidarReader * lidar_reader_{nullptr};
+  bool transport_initialized_{false};
 
-    std::string imu_frame_;
-    std::string imu_topic_;
+  int initialize_type_{2};
+  int work_mode_{0};
+  bool use_system_timestamp_{true};
+  double range_min_{0.0};
+  double range_max_{100.0};
+  int cloud_scan_num_{18};
+
+  std::string serial_port_{"/dev/ttyACM0"};
+  int baudrate_{4000000};
+
+  int lidar_port_{6101};
+  std::string lidar_ip_{"192.168.1.62"};
+  int local_port_{6201};
+  std::string local_ip_{"192.168.1.2"};
+
+  std::string cloud_frame_{"unilidar_lidar"};
+  std::string cloud_topic_{"unilidar/cloud"};
+  std::string imu_frame_{"unilidar_imu"};
+  std::string imu_topic_{"unilidar/imu"};
+  std::string initial_imu_frame_{"unilidar_imu_initial"};
+
+  bool publish_imu_tf_{true};
+  bool publish_imu_to_lidar_tf_{true};
+  bool publish_robot_to_imu_tf_{false};
+  std::string robot_frame_{};
+  double imu_to_lidar_x_{0.007698};
+  double imu_to_lidar_y_{0.014655};
+  double imu_to_lidar_z_{-0.00667};
+  double imu_to_lidar_qx_{0.0};
+  double imu_to_lidar_qy_{0.0};
+  double imu_to_lidar_qz_{0.0};
+  double imu_to_lidar_qw_{1.0};
+  double robot_to_imu_x_{0.0};
+  double robot_to_imu_y_{0.0};
+  double robot_to_imu_z_{0.0};
+  double robot_to_imu_qx_{0.0};
+  double robot_to_imu_qy_{0.0};
+  double robot_to_imu_qz_{0.0};
+  double robot_to_imu_qw_{0.0};
+
+  int qos_depth_{10};
+  int poll_interval_ms_{1};
 };
-
-///////////////////////////////////////////////////////////////////
-
-UnitreeLidarSDKNode::UnitreeLidarSDKNode(const rclcpp::NodeOptions &options)
-    : Node("unitre_lidar_sdk_node", options)
-{
-    // load config parameters
-    declare_parameter<int>("initialize_type", 2);
-    declare_parameter<int>("work_mode", 0);
-    declare_parameter<bool>("use_system_timestamp", true);
-    declare_parameter<double>("range_min", 0);
-    declare_parameter<double>("range_max", 50);
-    declare_parameter<int>("cloud_scan_num", 18);
-
-    declare_parameter<std::string>("serial_port", "/dev/ttyACM0");
-    declare_parameter<int>("baudrate", 4000000);
-
-    declare_parameter<int>("lidar_port", 6101);
-    declare_parameter<std::string>("lidar_ip", "192.168.1.2");
-    declare_parameter<int>("local_port", 6201);
-    declare_parameter<std::string>("local_ip", "192.168.1.62");
-
-    declare_parameter<std::string>("cloud_frame", "unilidar_lidar");
-    declare_parameter<std::string>("cloud_topic", "unilidar/cloud");
-
-    declare_parameter<std::string>("imu_frame", "unilidar_imu");
-    declare_parameter<std::string>("imu_topic", "unilidar/imu");
-
-    work_mode_ = get_parameter("work_mode").as_int();
-    initialize_type_ = get_parameter("initialize_type").as_int();
-
-    serial_port_ = get_parameter("serial_port").as_string();
-    baudrate_ = get_parameter("baudrate").as_int();
-
-    lidar_port_ = get_parameter("lidar_port").as_int();
-    lidar_ip_ = get_parameter("lidar_ip").as_string();
-    local_port_ = get_parameter("local_port").as_int();
-    local_ip_ = get_parameter("local_ip").as_string();
-
-    cloud_scan_num_ = get_parameter("cloud_scan_num").as_int();
-    use_system_timestamp_ = get_parameter("use_system_timestamp").as_bool();
-    range_max_ = get_parameter("range_max").as_double();
-    range_min_ = get_parameter("range_min").as_double();
-
-    cloud_frame_ = get_parameter("cloud_frame").as_string();
-    cloud_topic_ = get_parameter("cloud_topic").as_string();
-    
-    imu_frame_ = get_parameter("imu_frame").as_string();
-    imu_topic_ = get_parameter("imu_topic").as_string();
-
-    // Initialize UnitreeLidarReader
-    lsdk_ = createUnitreeLidarReader();
-
-    std::cout << "initialize_type_ = " << initialize_type_ << std::endl;
-
-    if (initialize_type_ == 1)
-    {
-        lsdk_->initializeSerial(serial_port_, baudrate_,
-                                cloud_scan_num_, use_system_timestamp_, range_min_, range_max_);
-    }
-    else if (initialize_type_ == 2)
-    {
-        lsdk_->initializeUDP(lidar_port_, lidar_ip_, local_port_, local_ip_,
-                             cloud_scan_num_, use_system_timestamp_, range_min_, range_max_);
-    }
-    else
-    {
-        std::cout << "initialize_type is not right! exit now ...\n";
-        exit(0);
-    }
-
-    lsdk_->setLidarWorkMode(work_mode_);
-
-    // ROS2
-    broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(*this);
-    pub_cloud_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(cloud_topic_, 10);
-    pub_imu_ = this->create_publisher<sensor_msgs::msg::Imu>(imu_topic_, 10);
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(1), std::bind(&UnitreeLidarSDKNode::timer_callback, this));
-}
-
-void UnitreeLidarSDKNode::timer_callback()
-{
-    int result = lsdk_->runParse();
-    static pcl::PointCloud<PointType>::Ptr cloudOut(new pcl::PointCloud<PointType>());
-
-    // RCLCPP_INFO(this->get_logger(), "result = %d", result);
-
-    if (result == LIDAR_IMU_DATA_PACKET_TYPE)
-    {
-        LidarImuData imu;
-        lsdk_->getImuData(imu);
-
-        if (lsdk_->getImuData(imu))
-        {
-            // publish imu message
-            rclcpp::Time timestamp(imu.info.stamp.sec, imu.info.stamp.nsec);
-
-            sensor_msgs::msg::Imu imuMsg;
-            imuMsg.header.frame_id = imu_frame_;
-            imuMsg.header.stamp = timestamp;
-
-            imuMsg.orientation.x = imu.quaternion[0];
-            imuMsg.orientation.y = imu.quaternion[1];
-            imuMsg.orientation.z = imu.quaternion[2];
-            imuMsg.orientation.w = imu.quaternion[3];
-
-            imuMsg.angular_velocity.x = imu.angular_velocity[0];
-            imuMsg.angular_velocity.y = imu.angular_velocity[1];
-            imuMsg.angular_velocity.z = imu.angular_velocity[2];
-
-            imuMsg.linear_acceleration.x = imu.linear_acceleration[0];
-            imuMsg.linear_acceleration.y = imu.linear_acceleration[1];
-            imuMsg.linear_acceleration.z = imu.linear_acceleration[2];
-
-            pub_imu_->publish(imuMsg);
-
-            // publish tf from initial imu to real-time imu
-            geometry_msgs::msg::TransformStamped transformStamped;
-            transformStamped.header.stamp = this->now(); // 使用当前时间
-            transformStamped.header.frame_id = imu_frame_ + "_initial"; // 父坐标系
-            transformStamped.child_frame_id = imu_frame_; // 子坐标系
-            transformStamped.transform.translation.x = 0;
-            transformStamped.transform.translation.y = 0;
-            transformStamped.transform.translation.z = 0;
-            transformStamped.transform.rotation.x = imu.quaternion[1];
-            transformStamped.transform.rotation.y = imu.quaternion[2];
-            transformStamped.transform.rotation.z = imu.quaternion[3];
-            transformStamped.transform.rotation.w = imu.quaternion[0];
-            broadcaster_->sendTransform(transformStamped);
-
-            // publish tf from imu to lidar
-            transformStamped.header.frame_id = imu_frame_; // 父坐标系
-            transformStamped.child_frame_id = cloud_frame_; // 子坐标系
-            transformStamped.transform.translation.x = 0.007698;
-            transformStamped.transform.translation.y = 0.014655;
-            transformStamped.transform.translation.z = -0.00667;
-            transformStamped.transform.rotation.x = 0;
-            transformStamped.transform.rotation.y = 0;
-            transformStamped.transform.rotation.z = 0;
-            transformStamped.transform.rotation.w = 1;
-            broadcaster_->sendTransform(transformStamped);
-        }
-    }
-    else if (result == LIDAR_POINT_DATA_PACKET_TYPE)
-    {
-        // RCLCPP_INFO(this->get_logger(), "POINT_CLOUD");
-        PointCloudUnitree cloud;
-        if (lsdk_->getPointCloud(cloud))
-        {
-            transformUnitreeCloudToPCL(cloud, cloudOut);
-
-            rclcpp::Time timestamp(
-                static_cast<int32_t>(cloud.stamp),
-                static_cast<uint32_t>((cloud.stamp - static_cast<int32_t>(cloud.stamp)) * 1e9));
-
-            sensor_msgs::msg::PointCloud2 cloud_msg;
-            pcl::toROSMsg(*cloudOut, cloud_msg);
-            cloud_msg.header.frame_id = cloud_frame_;
-            cloud_msg.header.stamp = timestamp;
-
-            pub_cloud_->publish(cloud_msg);
-        }
-    }
-}

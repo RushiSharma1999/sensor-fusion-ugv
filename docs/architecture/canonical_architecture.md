@@ -8,7 +8,7 @@ Solid arrows in the current diagram are **Verified from code** host-side connect
 
 ## Current repository architecture
 
-**Verified from code:** The Unitree ROS wrapper publishes `PointCloud2` on `/unilidar/cloud`, IMU data, and a separate sensor TF tree. It does not publish `LaserScan`. `gap_follow`, `vfh_obstacle_avoidance`, `vfh_with_esp_fusion`, and the LiDAR logger subscribe to `/scan`, for which no checked-in producer exists.
+**Verified from code:** The Unitree ROS wrapper publishes `PointCloud2` on `/unilidar/cloud`, IMU data on `/unilidar/imu`, a dynamic initial-IMU-to-IMU transform, and a static IMU-to-LiDAR transform. It does not publish `LaserScan`. `gap_follow`, `vfh_obstacle_avoidance`, `vfh_with_esp_fusion`, and the LiDAR logger subscribe to `/scan`, for which no checked-in producer exists. The exact sensor contract and its hardware limitations are recorded in [`../interfaces/unitree_driver_tf_contract.md`](../interfaces/unitree_driver_tf_contract.md).
 
 **Verified from code:** `cmd_vel_to_serial` receives `/cmd_vel`, sends an ASCII `CMD` line, and republishes parsed odometry, ToF summary, and ultrasonic data from its serial boundary. The ToF and ultrasonic processors feed `fusion_node`; the standalone VFH uses `/scan` plus fusion penalties/speed/stop and publishes `/cmd_vel_vfh`. Camera following publishes `/cmd_vel_camera`. `safety_mux_node` selects between those two candidates and publishes `/cmd_vel`.
 
@@ -54,9 +54,9 @@ flowchart LR
 Current limitations relevant to integration include:
 
 - **Verified from code:** no `/scan` producer or `base_link`-connected sensor TF exists;
-- **Verified from code:** the Unitree wrapper's SDK include/library paths do not resolve to the checked-in sibling SDK;
+- **Verified from code:** the Unitree wrapper selects the checked-in sibling SDK archive by supported Linux architecture, while target-Pi compile/link verification remains pending;
 - **Verified from code:** multiple executable modes can own `/cmd_vel`;
-- **Verified from code:** the only launch starts Unitree LiDAR and RViz;
+- **Verified from code:** the only launch starts the Unitree driver headlessly by default and can add RViz explicitly; it does not start `/scan`, navigation, fusion, serial actuation, or motors;
 - **Potential issue:** missing/stale ToF, fusion, and other safety inputs can be retained or interpreted permissively in parts of the current graph; and
 - **Potential issue:** invalid-but-nonempty scan behavior, critical-stop/escape interaction, and serial failure behavior require correction and verification in later phases.
 

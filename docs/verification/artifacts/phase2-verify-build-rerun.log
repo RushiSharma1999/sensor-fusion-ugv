@@ -1,0 +1,46 @@
+Phase 2 Raspberry Pi verification — corrected rerun (sanitized evidence summary)
+Date: 2026-08-17; exact run time was not supplied
+Source: preserved operator transcript named phase2-verify-build-rerun.log
+Repository state: corrected uncommitted Phase 2 working tree atop 664bd9fd3e346b681d7b4b48e683936cdc79bfa3
+
+Environment reported by the operator:
+- Raspberry Pi 4
+- Ubuntu 22.04.5 Jammy
+- Linux aarch64
+- Python 3.10.12
+- ROS 2 Humble
+- isolated shell with no inherited ROS, AMENT, COLCON, CMAKE_PREFIX_PATH,
+  or PYTHONPATH state
+- no robot, LiDAR, serial, motor, or tmux processes running
+
+Observed passing stages:
+- setup-source regression
+- static ROS package validator
+- focused Unitree driver validator
+- clean colcon build of all eleven workspace packages
+- unitree_lidar_ros2 compilation and ARM64/Humble link
+- checked-in aarch64 Unitree archive selection
+- installed launch/config/RViz resource checks
+- ros2 launch unitree_lidar_ros2 launch.py --show-args
+
+Observed nonfatal build warnings:
+- unused argc/argv parameters in checked-in vendor example programs
+- CMake CMP0074/PCL_ROOT developer warning
+
+Observed failing stage:
+- the strict full-workspace colcon test gate reported inherited Flake8/PEP257
+  violations in esp_bridge, esp_fusion_pkg, fusion_pkg, gap_follow,
+  lidar_logger_pkg, tof_processor_pkg, ultrasonic_pkg, and vfh_pkg
+- no unitree_lidar_ros2 build or test failure was reported
+
+Classification:
+PASS for this working tree's ARM64/Humble clean compilation, Unitree wrapper
+compile/link, SDK archive selection, installed resources, and launch argument
+parsing. FAIL for the general full-workspace test gate because of the eight
+listed non-Unitree packages' inherited style debt. Fresh-image dependency
+reproducibility remains pending. No hardware was started.
+
+Sanitization note:
+This repository artifact is an evidence synopsis limited to facts supplied by
+the operator. Machine-specific private paths and unavailable line-by-line
+transcript content are not reproduced or invented.
