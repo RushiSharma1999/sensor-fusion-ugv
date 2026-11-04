@@ -27,12 +27,12 @@ find_package(sensor_msgs REQUIRED)
 include_directories(
   ${PCL_INCLUDE_DIRS} 
   include
-  ../../../unitree_lidar_sdk/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/../unitree_lidar_sdk/include
 )
 
 link_directories(
   ${PCL_LIBRARY_DIRS}
-  ../../../unitree_lidar_sdk/lib/${CMAKE_SYSTEM_PROCESSOR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/../unitree_lidar_sdk/lib/${CMAKE_SYSTEM_PROCESSOR}
 )
 
 add_definitions(${PCL_DEFINITIONS})

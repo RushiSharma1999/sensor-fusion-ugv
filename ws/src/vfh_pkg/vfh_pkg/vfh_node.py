@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import math
+import time
 from typing import List, Tuple
 
 import rclpy
@@ -127,6 +128,50 @@ class VFHObstacleAvoidance(Node):
         self.fusion_smooth_suppression = float(self.get_parameter('fusion_smooth_suppression').value)
         self.fusion_priority_speed_limit = float(self.get_parameter('fusion_priority_speed_limit').value)
 
+        # Conservative front-stop release for sparse pointcloud-derived scans.
+        self.declare_parameter('scan_timeout_sec', 0.35)
+        self.declare_parameter('front_release_margin', 0.10)
+        self.declare_parameter('front_release_scans', 5)
+        self.scan_timeout_sec = float(self.get_parameter('scan_timeout_sec').value)
+        self.front_release_margin = float(self.get_parameter('front_release_margin').value)
+        self.front_release_scans = int(self.get_parameter('front_release_scans').value)
+        if (not math.isfinite(self.scan_timeout_sec) or self.scan_timeout_sec <= 0 or
+                not math.isfinite(self.front_release_margin) or self.front_release_margin < 0 or
+                self.front_release_scans < 1 or not math.isfinite(self.max_yaw_rate) or
+                self.max_yaw_rate <= 0 or not 0 <= self.min_speed <= self.forward_speed or
+                not 0 < self.front_stop_dist < self.front_slowdown_dist):
+            raise ValueError('Invalid VFH speed, stop-release, or timeout parameters')
+        self.last_scan_received = None
+        self.front_stop_latched = True
+        self.front_clear_count = 0
+        self.front_valid_count = 0
+        self.front_raw_min = float('nan')
+        self.last_guard_reason = None
+
+        # Continuous reactive mode: commit to one side until a clear front is
+        # observed repeatedly. These limits are configuration, not calibration.
+        self.declare_parameter('continuous_avoidance', True)
+        self.declare_parameter('avoid_turn_timeout_sec', 20.0)
+        self.declare_parameter('avoid_clear_scans', 5)
+        self.declare_parameter('min_side_returns', 2)
+        self.continuous_avoidance = bool(self.get_parameter('continuous_avoidance').value)
+        self.avoid_turn_timeout_sec = float(self.get_parameter('avoid_turn_timeout_sec').value)
+        self.avoid_clear_scans = int(self.get_parameter('avoid_clear_scans').value)
+        self.min_side_returns = int(self.get_parameter('min_side_returns').value)
+        if (not math.isfinite(self.avoid_turn_timeout_sec) or self.avoid_turn_timeout_sec <= 0 or
+                self.avoid_clear_scans < 1 or self.min_side_returns < 1 or
+                not 0 < self.front_stop_dist < self.hard_turn_dist < self.front_slowdown_dist or
+                not math.isfinite(self.robot_radius) or self.robot_radius <= 0 or
+                not math.isfinite(self.safety_margin) or self.safety_margin < 0):
+            raise ValueError('Invalid continuous-avoidance thresholds, geometry or timeout')
+        self.avoid_phase = 'cruise'
+        self.avoid_turn_sign = 0.0
+        self.avoid_clear_count = 0
+        self.avoid_started_at = None
+        self.avoid_log_key = None
+        self.avoid_last_log = -math.inf
+        self.avoid_front_min = None
+
         # histogram sizing
         self.num_sectors = max(5, int(round(self.front_fov_deg / self.sector_angle_deg)))
         if self.num_sectors % 2 == 0:
@@ -192,6 +237,8 @@ class VFHObstacleAvoidance(Node):
 
         self.cmd_pub = self.create_publisher(Twist, cmd_topic, 10)
 
+        self.watchdog_timer = self.create_timer(0.05, self.check_scan_timeout)
+
         self.get_logger().info('VFH obstacle avoidance node started.')
         self.get_logger().info(f'scan_topic={scan_topic}, cmd_topic={cmd_topic}')
         self.get_logger().info(
@@ -205,18 +252,52 @@ class VFHObstacleAvoidance(Node):
 
     def on_fusion_stop(self, msg: Bool):
         self.fusion_critical_stop = bool(msg.data)
+        if self.fusion_critical_stop:
+            self.guard_stop('fusion_stop')
 
     def on_fusion_speed(self, msg: Float32):
         self.fusion_speed_limit = self.clamp(float(msg.data), 0.0, 1.0)
 
     # ---------------- Main scan callback ----------------
     def scan_callback(self, msg: LaserScan):
-        if not msg.ranges:
+        self.last_scan_received = time.monotonic()
+        if (not msg.ranges or not math.isfinite(msg.angle_min) or
+                not math.isfinite(msg.angle_increment) or msg.angle_increment == 0 or
+                not math.isfinite(msg.range_min) or not math.isfinite(msg.range_max) or
+                msg.range_min < 0 or msg.range_max <= msg.range_min):
+            self.guard_stop('invalid_scan')
+            return
+
+        front = [float(r) for i, r in enumerate(msg.ranges)
+                 if abs(msg.angle_min + i * msg.angle_increment) <= math.radians(15.0)
+                 and math.isfinite(r) and r > 0 and msg.range_min <= r <= msg.range_max]
+        self.front_valid_count = len(front)
+        self.front_raw_min = min(front) if front else float('nan')
+        if not front:
+            self.guard_stop('front_unknown')
+            return
+        if self.fusion_critical_stop:
+            self.guard_stop('fusion_stop')
+            return
+        self.last_guard_reason = None
+        front_min = self.front_raw_min
+        if front_min <= self.front_stop_dist:
+            self.front_stop_latched = True
+            self.front_clear_count = 0
+        elif self.front_stop_latched:
+            if front_min >= self.front_stop_dist + self.front_release_margin:
+                self.front_clear_count += 1
+                if self.front_clear_count >= self.front_release_scans:
+                    self.front_stop_latched = False
+            else:
+                self.front_clear_count = 0
+
+        if self.continuous_avoidance:
+            self.run_continuous_avoidance(msg, front_min)
             return
 
         dt = self.compute_dt(msg)
-
-        hist, sector_clearance, front_min = self.build_histogram(msg)
+        hist, sector_clearance, _ = self.build_histogram(msg)
 
         if len(self.fusion_penalties) == self.num_sectors:
             hist = [h + p for h, p in zip(hist, self.fusion_penalties)]
@@ -244,12 +325,9 @@ class VFHObstacleAvoidance(Node):
             if not clogged:
                 self.blocked_counter = 0
 
-        if self.fusion_critical_stop and not self.hazard_escape_active:
-            self.start_hazard_escape(sector_clearance)
-
         if self.hazard_escape_active:
             cmd = self.run_hazard_escape(dt)
-            self.cmd_pub.publish(cmd)
+            self.publish_command(cmd)
 
             if self.debug_log:
                 self.get_logger().warn(
@@ -260,7 +338,7 @@ class VFHObstacleAvoidance(Node):
 
         if self.mode == 'escape':
             cmd = self.run_escape(dt)
-            self.cmd_pub.publish(cmd)
+            self.publish_command(cmd)
 
             if self.debug_log:
                 self.get_logger().info(
@@ -293,7 +371,7 @@ class VFHObstacleAvoidance(Node):
         cmd.angular.z = (1.0 - self.ema_alpha) * self.prev_cmd_w + self.ema_alpha * raw_w
         cmd.angular.z = self.clamp(cmd.angular.z, -self.max_yaw_rate, self.max_yaw_rate)
 
-        if front_min <= self.front_stop_dist and fusion_urgency < 0.85:
+        if self.front_stop_latched or front_min <= self.front_stop_dist:
             cmd.linear.x = 0.0
         else:
             speed_scale = self.linear_scale(front_min, self.front_stop_dist, self.front_slowdown_dist)
@@ -306,12 +384,13 @@ class VFHObstacleAvoidance(Node):
                 cmd.linear.x *= max(0.25, 1.0 - 0.45 * fusion_urgency)
 
             if cmd.linear.x > 0.0:
-                cmd.linear.x = max(self.min_speed, cmd.linear.x)
+                cmd.linear.x = min(self.forward_speed * self.fusion_speed_limit,
+                                   max(self.min_speed, cmd.linear.x))
 
         if (front_min < self.hard_turn_dist or fusion_urgency > 0.65) and abs(cmd.angular.z) > 0.7 * self.max_yaw_rate:
             cmd.linear.x = min(cmd.linear.x, 0.05)
 
-        self.cmd_pub.publish(cmd)
+        self.publish_command(cmd)
 
         self.prev_target_angle = target_angle
         self.prev_cmd_w = cmd.angular.z
@@ -320,7 +399,8 @@ class VFHObstacleAvoidance(Node):
 
         if self.debug_log:
             self.get_logger().info(
-                f'[NORMAL] front_min={front_min:.2f} '
+                f'[NORMAL] front_min={front_min:.2f} front_valid={self.front_valid_count} '
+                f'front_latched={int(self.front_stop_latched)} clear_count={self.front_clear_count} '
                 f'open_frac={open_fraction:.2f} '
                 f'blocked_ctr={self.blocked_counter} '
                 f'target_sector={target_sector} '
@@ -333,6 +413,129 @@ class VFHObstacleAvoidance(Node):
                 f'penalty_max={max(self.fusion_penalties) if self.fusion_penalties else 0.0:.2f} '
                 f'valleys={valleys}'
             )
+
+    def run_continuous_avoidance(self, scan, front_min):
+        now = time.monotonic()
+        points = []
+        for i, distance in enumerate(scan.ranges):
+            if not math.isfinite(distance) or distance <= 0 or not scan.range_min <= distance <= scan.range_max:
+                continue
+            angle = scan.angle_min + i * scan.angle_increment
+            # LaserScan convention: +x front, +y left. Mounting must be verified.
+            angle = math.atan2(math.sin(angle), math.cos(angle))
+            points.append((angle, float(distance)))
+        inflate = self.robot_radius + self.safety_margin
+        # Include observed hazards in the configured forward footprint corridor,
+        # rather than considering only the narrow central angle window.
+        corridor = [r * math.cos(a) for a, r in points
+                    if r * math.cos(a) > 0 and abs(r * math.sin(a)) <= inflate]
+        front = min([front_min] + corridor)
+        self.avoid_front_min = front
+        left = [r for a, r in points if math.radians(20) <= a <= math.radians(100)]
+        right = [r for a, r in points if math.radians(-100) <= a <= math.radians(-20)]
+        left_min = min(left) if len(left) >= self.min_side_returns else None
+        right_min = min(right) if len(right) >= self.min_side_returns else None
+        nearest = min((r for _, r in points), default=math.inf)
+        cmd = Twist()
+        reason = 'front_clear'
+
+        if self.avoid_phase == 'blocked':
+            reason = 'avoidance_timeout_restart_required'
+        elif self.fusion_speed_limit <= 0:
+            self.avoid_clear_count = 0
+            reason = 'fusion_speed_zero'
+        else:
+            if self.avoid_phase == 'cruise' and front <= self.hard_turn_dist:
+                self.avoid_phase = 'choose_side'
+                self.avoid_started_at = now
+                self.avoid_clear_count = 0
+                self.avoid_turn_sign = 0.0
+                # This callback is a braking step, even with good side readings.
+                reason = 'brake_for_obstacle'
+            elif self.avoid_phase in ('choose_side', 'turn'):
+                if now - self.avoid_started_at >= self.avoid_turn_timeout_sec:
+                    self.avoid_phase = 'blocked'
+                    reason = 'avoidance_timeout_restart_required'
+                else:
+                    if front >= self.front_slowdown_dist and not self.front_stop_latched:
+                        self.avoid_clear_count += 1
+                    else:
+                        self.avoid_clear_count = 0
+                    if self.avoid_clear_count >= self.avoid_clear_scans:
+                        self.avoid_phase = 'cruise'
+                        self.avoid_started_at = None
+                        self.prev_cmd_w = 0.0
+                        self.prev_target_angle = 0.0
+                        reason = 'clear_path_confirmed_brake_before_forward'
+                    elif nearest <= inflate:
+                        self.avoid_clear_count = 0
+                        reason = 'observed_hazard_inside_configured_turn_clearance'
+                    elif left_min is None or right_min is None:
+                        self.avoid_clear_count = 0
+                        reason = 'side_coverage_unknown'
+                    elif self.avoid_clear_count > 0:
+                        # Stop while confirming the newly clear direction.
+                        reason = 'confirming_clear_path'
+                    else:
+                        if self.avoid_phase == 'choose_side':
+                            self.avoid_turn_sign = 1.0 if left_min >= right_min else -1.0
+                            self.avoid_phase = 'turn'
+                        cmd.angular.z = self.avoid_turn_sign * min(self.max_yaw_rate, abs(self.escape_turn_rate))
+                        self.last_turn_sign = self.avoid_turn_sign
+                        reason = 'committed_turn'
+            elif nearest <= inflate:
+                self.front_stop_latched = True
+                self.front_clear_count = 0
+                reason = 'observed_hazard_inside_configured_clearance'
+            elif not self.front_stop_latched:
+                scale = self.linear_scale(front, self.front_stop_dist, self.front_slowdown_dist)
+                cmd.linear.x = min(self.forward_speed * self.fusion_speed_limit,
+                                   max(self.min_speed, self.forward_speed * scale * self.fusion_speed_limit))
+            else:
+                reason = 'waiting_for_front_release'
+        self.publish_command(cmd)
+        self.prev_cmd_w = cmd.angular.z
+        key = (self.avoid_phase, reason, self.avoid_turn_sign)
+        if self.debug_log and (key != self.avoid_log_key or now - self.avoid_last_log >= 0.5):
+            self.get_logger().info(
+                f'[AVOID] phase={self.avoid_phase} reason={reason} '
+                f'front_min={front:.3f} front_valid={self.front_valid_count} '
+                f'front_latched={int(self.front_stop_latched)} clear_count={self.avoid_clear_count} '
+                f'left_min={left_min} right_min={right_min} side={self.avoid_turn_sign:+.0f} '
+                f'v={cmd.linear.x:.3f} w={cmd.angular.z:.3f}'
+            )
+            self.avoid_log_key, self.avoid_last_log = key, now
+
+    def publish_command(self, cmd: Twist):
+        # Apply bounds to every path, including escape modes.
+        if not math.isfinite(cmd.linear.x) or not math.isfinite(cmd.angular.z):
+            cmd = Twist()
+        cmd.linear.x = self.clamp(cmd.linear.x, 0.0, self.forward_speed)
+        cmd.angular.z = self.clamp(cmd.angular.z, -self.max_yaw_rate, self.max_yaw_rate)
+        if self.front_stop_latched:
+            cmd.linear.x = 0.0
+        self.cmd_pub.publish(cmd)
+
+    def guard_stop(self, reason):
+        self.front_stop_latched = True
+        self.front_clear_count = 0
+        self.avoid_clear_count = 0
+        # A data gap stops motion without erasing the selected passing side.
+        self.prev_cmd_w = 0.0
+        self.prev_target_angle = 0.0
+        self.mode = 'normal'
+        self.hazard_escape_active = False
+        self.blocked_counter = 0
+        self.last_scan_stamp = None
+        self.cmd_pub.publish(Twist())
+        if reason != self.last_guard_reason:
+            self.get_logger().warn(f'[STOP] reason={reason}; fresh finite front returns required')
+        self.last_guard_reason = reason
+
+    def check_scan_timeout(self):
+        if (self.last_scan_received is None or
+                time.monotonic() - self.last_scan_received > self.scan_timeout_sec):
+            self.guard_stop('scan_timeout')
 
     # ---------------- Escape logic ----------------
     def start_escape(self, sector_clearance: List[float]):
@@ -363,6 +566,7 @@ class VFHObstacleAvoidance(Node):
             turn_mag = max(0.35, self.escape_turn_rate * 0.55)
 
         cmd.linear.x = 0.0
+        turn_mag = min(abs(turn_mag), self.max_yaw_rate, abs(self.escape_turn_rate))
         cmd.angular.z = self.escape_turn_dir * turn_mag
 
         self.escape_accum_rad += abs(cmd.angular.z) * dt
@@ -410,6 +614,7 @@ class VFHObstacleAvoidance(Node):
             turn_mag = max(0.40, self.hazard_escape_turn_rate * 0.60)
 
         cmd.linear.x = 0.0
+        turn_mag = min(abs(turn_mag), self.max_yaw_rate, abs(self.hazard_escape_turn_rate))
         cmd.angular.z = self.hazard_escape_turn_dir * turn_mag
 
         self.hazard_escape_accum_rad += abs(cmd.angular.z) * dt
@@ -450,6 +655,8 @@ class VFHObstacleAvoidance(Node):
 
     def build_histogram(self, scan: LaserScan) -> Tuple[List[float], List[float], float]:
         hist = [0.0] * self.num_sectors
+        # Histogram valleys are candidate directions, not verified free space.
+        # Front finite-return guard above blocks motion when front data is absent.
         sector_clearance = [self.max_range_clip] * self.num_sectors
 
         half_fov = self.total_hist_fov_rad / 2.0
@@ -463,12 +670,10 @@ class VFHObstacleAvoidance(Node):
             if angle < -half_fov or angle > half_fov:
                 continue
 
-            if r is None or math.isnan(r) or r <= 0.0:
+            if (r is None or not math.isfinite(r) or r <= 0.0 or
+                    not scan.range_min <= r <= scan.range_max):
                 continue
-            if math.isinf(r):
-                r = self.max_range_clip
-            else:
-                r = min(r, self.max_range_clip)
+            r = min(r, self.max_range_clip)
 
             if abs(angle) <= math.radians(15.0):
                 front_min = min(front_min, r)
@@ -621,20 +826,26 @@ class VFHObstacleAvoidance(Node):
     def clamp_int(x: int, lo: int, hi: int) -> int:
         return max(lo, min(hi, x))
 
-
 def main(args=None):
+    from rclpy.executors import ExternalShutdownException
+
     rclpy.init(args=args)
     node = VFHObstacleAvoidance()
 
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
-        stop = Twist()
-        node.cmd_pub.publish(stop)
-        node.destroy_node()
-        rclpy.shutdown()
+        try:
+            if rclpy.ok():
+                node.cmd_pub.publish(Twist())
+        finally:
+            try:
+                node.destroy_node()
+            finally:
+                if rclpy.ok():
+                    rclpy.shutdown()
 
 
 if __name__ == '__main__':
