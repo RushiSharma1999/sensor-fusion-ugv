@@ -19,8 +19,11 @@ def yaw_to_quat(yaw: float):
 
 
 class CmdVelToSerial(Node):
-    def __init__(self):
-        super().__init__('cmd_vel_to_serial')
+    def __init__(self, **node_kwargs):
+        super().__init__('cmd_vel_to_serial', **node_kwargs)
+
+        from .speed_profiles import declare_speed_profile
+        profile = declare_speed_profile(self)
 
         # Params
         self.declare_parameter('port', '/dev/ttyACM0')
@@ -32,8 +35,8 @@ class CmdVelToSerial(Node):
         self.declare_parameter('firmware_debug', True)
         self.declare_parameter('dry_run', True)
         self.declare_parameter('cmd_timeout_sec', 0.25)
-        self.declare_parameter('max_linear_speed', 0.05)
-        self.declare_parameter('max_angular_speed', 0.25)
+        self.declare_parameter('max_linear_speed', profile.linear)
+        self.declare_parameter('max_angular_speed', profile.angular)
         self.declare_parameter('allow_reverse', False)
         self.declare_parameter('ultra_timeout_sec', 0.6)
 
@@ -63,6 +66,10 @@ class CmdVelToSerial(Node):
         if not (math.isfinite(self.rate_hz) and self.rate_hz > 0 and
                 math.isfinite(self.rx_hz) and self.rx_hz > 0):
             raise ValueError('rate_hz and rx_hz must be positive and finite')
+        if (abs(self.max_linear_speed - profile.linear) > 1e-9 or
+                abs(self.max_angular_speed - profile.angular) > 1e-9):
+            raise ValueError('Bridge limits must match speed_profile; '
+                             'select the same profile in both nodes')
         self.started_at = time.monotonic()
         self.startup_deadline = self.started_at + 5.0
         self.stop_acknowledged = False
@@ -277,9 +284,17 @@ class CmdVelToSerial(Node):
                     acknowledged = True
                     break
                 time.sleep(0.01)
+        except Exception as exc:
+            self.serial_fault = True
+            self.get_logger().error(f'Final STOP read failed: {exc}')
         finally:
-            self.ser.close()
-        self.get_logger().info(f'Final STOP acknowledgement observed={int(acknowledged)}')
+            try:
+                self.ser.close()
+            except Exception as exc:
+                self.serial_fault = True
+                self.get_logger().error(f'Serial close failed: {exc}')
+            finally:
+                self.get_logger().info(f'Final STOP acknowledgement observed={int(acknowledged)}')
 
     def handle_odom_line(self, line: str):
         try:
