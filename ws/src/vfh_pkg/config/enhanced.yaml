@@ -1,0 +1,34 @@
+# Safe software fallback, not a statement of chassis dimensions or LiDAR pose.
+# Pass to the launcher with --behavior enhanced --params /absolute/path/to/this.yaml.
+vfh_obstacle_avoidance:
+  ros__parameters:
+    geometry_mode: legacy_envelope
+    robot_radius: 0.20
+    safety_margin: 0.16
+    enable_curves: false
+    # To enable curves AFTER measurement, select geometry_mode: polygon,
+    # provide strictly convex CCW vertices in base_frame (JSON string, metres),
+    # and set mounting_calibrated and motion_model_calibrated true only after
+    # measuring the corresponding quantities. Never use test-fixture dimensions.
+    footprint_xy: '[]'
+    base_frame: base_link
+    scan_frame: unilidar_lidar
+    transform_mode: configured
+    mounting_calibrated: false
+    lidar_x: 0.0
+    lidar_y: 0.0
+    lidar_yaw: 0.0
+    motion_model_calibrated: false
+    linear_model_scale: 1.0
+    angular_model_scale: 1.0
+    linear_model_error: 0.0
+    angular_model_error: 0.0
+    # Defaults below retain existing timeouts and obstacle thresholds.
+    control_hz: 25.0
+    scan_timeout_sec: 0.35
+    front_stop_dist: 0.65
+    hard_turn_dist: 0.85
+    front_slowdown_dist: 1.2
+    confirm_sec: 0.20
+    confirm_scans: 2
+    recovery_budget_sec: 20.0
