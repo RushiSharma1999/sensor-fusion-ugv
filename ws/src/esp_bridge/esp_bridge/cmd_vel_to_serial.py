@@ -75,7 +75,14 @@ class CmdVelToSerial(Node):
         self.ultra_samples = {}
         self.last_ultra_publish = -math.inf
         self.last_ultra_timestamp = 0
-        self.ser = serial.Serial(port, baud, timeout=0.0, write_timeout=0.1, exclusive=True)
+        # UGV_SERIAL_OPEN_FIX_V1: match the stopped-state probe's line controls.
+        self.ser = serial.Serial(port=None, baudrate=baud, timeout=0.0,
+                                 write_timeout=0.1, exclusive=True)
+        self.ser.dtr = False
+        self.ser.rts = False
+        self.ser.port = port
+        self.ser.open()
+        self.get_logger().info('Serial line controls: DTR=0 RTS=0; STOP handshake required')
         self.get_logger().info(f"Serial open: {port} @ {baud}")
 
         # cmd_vel in
