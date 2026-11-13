@@ -3,6 +3,7 @@
 vfh_obstacle_avoidance:
   ros__parameters:
     geometry_mode: legacy_envelope
+    align_legacy_heading: false
     robot_radius: 0.20
     safety_margin: 0.16
     enable_curves: false

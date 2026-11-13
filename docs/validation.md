@@ -3,6 +3,8 @@
 The results below describe the initial implementation. The later
 [recorded-scan computation follow-up](scan_series_findings.md) adds three tests
 (49 functional checks total), timing diagnostics and invariant-geometry caching.
+The subsequent [heading alignment follow-up](heading_alignment.md) adds seven
+core tests and one ROS test (57 functional checks total).
 
 Implementation base: main `ec5e89f1474392d5fa1074ceeafa30492372b955`.
 The initial checkout was clean, and no applicable AGENTS.md was present.

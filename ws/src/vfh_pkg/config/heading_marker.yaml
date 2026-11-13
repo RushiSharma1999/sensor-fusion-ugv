@@ -1,0 +1,20 @@
+# SELECT EXPLICITLY with --behavior enhanced --params /absolute/path/to/this.yaml.
+# Initial heading estimate from the user's confirmed physically-forward marker:
+# five returns at raw LiDAR bearings 158..173 degrees, centred near +165 degrees.
+# heading_aligned_angle = raw_lidar_angle + lidar_yaw, so use about -165 degrees.
+# This is provisional; verify the front/left/right markers with motor power off.
+vfh_obstacle_avoidance:
+  ros__parameters:
+    geometry_mode: legacy_envelope
+    align_legacy_heading: true
+    lidar_yaw: -2.8797932657906435
+    # Keep the existing, unverified envelope at the LiDAR origin. No measured
+    # base_link translation, rotation pivot or physical dimensions are claimed.
+    robot_radius: 0.20
+    safety_margin: 0.16
+    lidar_x: 0.0
+    lidar_y: 0.0
+    transform_mode: configured
+    mounting_calibrated: false
+    motion_model_calibrated: false
+    enable_curves: false

@@ -53,7 +53,7 @@ class RosIntegrationTests(unittest.TestCase):
                 next_action = time.monotonic() + .12
             self.executor.spin_once(timeout_sec=.005)
 
-    def controller(self, behavior='enhanced', extra=()):
+    def controller(self, behavior='enhanced', extra=(), cli_args=None):
         params = [
             Parameter(
                 'behavior',
@@ -71,7 +71,7 @@ class RosIntegrationTests(unittest.TestCase):
                     'front_stop_dist', value=.65), Parameter(
                     'hard_turn_dist', value=.85), Parameter(
                     'front_slowdown_dist', value=1.2)]
-        node = VFHObstacleAvoidance(parameter_overrides=params)
+        node = VFHObstacleAvoidance(parameter_overrides=params, cli_args=cli_args)
         self.nodes.append(node)
         self.executor.add_node(node)
         self.sub = self.probe.create_subscription(
@@ -125,6 +125,26 @@ class RosIntegrationTests(unittest.TestCase):
         self.assertEqual(node.enhanced.core.previous.v, 0)
         self.spin(.2, lambda: self.pub.publish(self.scan(math.inf)))
         self.assertEqual(self.received[-1][1].linear.x, 0)
+
+    def test_heading_aligned_front_obstacle_requests_stationary_turn(self):
+        profile = (Path(__file__).resolve().parents[1]
+                   / 'ws/src/vfh_pkg/config/heading_marker.yaml')
+        node = self.controller(cli_args=['--ros-args', '--params-file', str(profile)])
+
+        def publish():
+            msg = self.scan()
+            for i in range(341, 350):
+                msg.ranges[i] = .6
+            self.pub.publish(msg)
+
+        self.spin(1.2, publish)
+        self.assertTrue(self.received)
+        self.assertTrue(all(msg.linear.x == 0 for _, msg in self.received))
+        self.assertTrue(any(abs(msg.angular.z) > 0 for _, msg in self.received))
+        self.assertAlmostEqual(node.enhanced.core.scan.mount.yaw, math.radians(-165))
+        self.assertTrue(node.enhanced.cfg.align_legacy_heading)
+        self.assertFalse(node.enhanced.cfg.mounting_calibrated)
+        self.assertFalse(node.enhanced.cfg.enable_curves)
 
     def test_preserved_baseline_still_publishes_and_has_profile_limits(self):
         node = self.controller('baseline')

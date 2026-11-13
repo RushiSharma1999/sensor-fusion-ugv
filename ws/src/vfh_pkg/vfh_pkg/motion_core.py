@@ -20,6 +20,7 @@ class Config:
     scan_frame: str = 'unilidar_lidar'
     base_frame: str = 'base_link'
     geometry_mode: str = 'legacy_envelope'
+    align_legacy_heading: bool = False
     footprint_xy: tuple = ()
     robot_radius: float = 0.20
     safety_margin: float = 0.16
@@ -112,15 +113,17 @@ class Config:
         if not self.scan_frame or not self.base_frame:
             raise ValueError('Frame names cannot be empty')
         if self.geometry_mode == 'legacy_envelope':
-            if self.transform_mode != 'configured' or any(
-                    (self.lidar_x, self.lidar_y, self.lidar_yaw)):
+            if self.transform_mode != 'configured' or self.lidar_x or self.lidar_y:
                 raise ValueError(
-                    'Legacy envelope is scan-anchored; select polygon for mounting transforms')
+                    'Legacy envelope stays at the LiDAR origin; use polygon for x/y or TF')
+            if self.lidar_yaw and not self.align_legacy_heading:
+                raise ValueError('Nonzero legacy lidar_yaw requires align_legacy_heading=true')
         elif (self.geometry_mode == 'polygon' and self.transform_mode == 'configured'
               and not self.mounting_calibrated):
             raise ValueError('Polygon configured transform requires mounting_calibrated')
-        if (self.geometry_mode == 'polygon' and self.transform_mode == 'configured'
-                and self.scan_frame == self.base_frame
+        if self.align_legacy_heading and self.geometry_mode != 'legacy_envelope':
+            raise ValueError('align_legacy_heading is only for the legacy envelope')
+        if (self.transform_mode == 'configured' and self.scan_frame == self.base_frame
                 and any((self.lidar_x, self.lidar_y, self.lidar_yaw))):
             raise ValueError(
                 'Scan already in base_frame: configured mounting offset would be applied twice')
@@ -181,7 +184,9 @@ def parse_scan(msg, received, ros_now_ns, sequence, config, mount=None):
             or abs(msg.angle_min + (n - 1) * step - msg.angle_max) > step * 1.01 + 1e-6):
         raise ValueError('invalid_scan_metadata')
     if config.geometry_mode == 'legacy_envelope':
-        mount = Mount()
+        # A virtual frame at the LiDAR origin, with heading-aligned axes. Zero
+        # translation here is not a claim that the LiDAR sits at base_link.
+        mount = Mount(yaw=config.lidar_yaw if config.align_legacy_heading else 0.0)
     elif config.transform_mode == 'configured':
         mount = Mount(config.lidar_x, config.lidar_y, config.lidar_yaw)
     elif mount is None:

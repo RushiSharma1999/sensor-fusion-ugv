@@ -49,6 +49,56 @@ def release(core, t=100.0, factory=scan):
 
 
 class GeometryTests(unittest.TestCase):
+    def test_heading_alignment_is_explicit_and_cannot_invent_offsets(self):
+        with self.assertRaises(ValueError):
+            Config(lidar_yaw=math.pi)
+        for options in ({'lidar_x': .1}, {'lidar_y': .1}, {'transform_mode': 'tf'},
+                        {'scan_frame': 'base_link'}):
+            with self.assertRaises(ValueError):
+                Config(align_legacy_heading=True, lidar_yaw=math.pi, **options)
+        with self.assertRaises(ValueError):
+            polygon_config(align_legacy_heading=True)
+        with self.assertRaises(ValueError):
+            Config(align_legacy_heading=True, lidar_yaw=math.nan)
+
+    def test_heading_alignment_rotates_points_once_and_preserves_raw_scan(self):
+        cfg = Config(align_legacy_heading=True, lidar_yaw=math.radians(-165))
+        msg = obstacle(scan(), math.cos(math.radians(165)), math.sin(math.radians(165)), 4)
+        original = tuple(msg.ranges)
+        data = parse_scan(msg, 100, 100_000_000_000, 1, cfg)
+        marker = data.points[345]
+        self.assertAlmostEqual(marker[0], 1)
+        self.assertAlmostEqual(marker[1], 0)
+        self.assertAlmostEqual(data.raw_front, 1)
+        raw = data.mount.inverse(marker)
+        self.assertAlmostEqual(math.atan2(raw[1], raw[0]), math.radians(165))
+        self.assertEqual(tuple(msg.ranges), original)
+        self.assertEqual(msg.header.frame_id, 'unilidar_lidar')
+
+    def test_heading_alignment_changes_checked_motion_direction(self):
+        msg = obstacle(scan(), .5 * math.cos(math.radians(165)),
+                       .5 * math.sin(math.radians(165)), 3)
+        unaligned = MotionController()
+        aligned = MotionController(Config(align_legacy_heading=True,
+                                          lidar_yaw=math.radians(-165)))
+        for core in (unaligned, aligned):
+            core.observe(msg, 100, 100_000_000_000)
+        self.assertTrue(unaligned.check(Command(.05, 0)).usable)
+        self.assertFalse(aligned.check(Command(.05, 0)).usable)
+        self.assertTrue(aligned.check(Command(0, .25)).usable)
+        self.assertTrue(aligned.check(Command(0, -.25)).usable)
+
+    def test_heading_alignment_does_not_hide_any_envelope_hazard(self):
+        cfg = Config(align_legacy_heading=True, lidar_yaw=math.radians(-165))
+        for degrees in (-175, -90, 0, 90, 165):
+            core = MotionController(cfg)
+            angle = math.radians(degrees)
+            result = feed(core, 100, obstacle(scan(), .3 * math.cos(angle), .3 * math.sin(angle)))
+            self.assertEqual(result.command, Command())
+            self.assertEqual(result.reason, 'observed_hazard_inside_footprint_envelope')
+            self.assertAlmostEqual(result.last_hazard['range_m'], .3)
+            self.assertAlmostEqual(result.last_hazard['bearing_deg'], degrees)
+
     def test_vectorized_clearance_matches_scalar_signed_distances(self):
         shape = make_footprint('legacy_envelope', (), .2, .16)
         rng = random.Random(731)
@@ -145,6 +195,18 @@ class GeometryTests(unittest.TestCase):
 
 
 class ObservationTests(unittest.TestCase):
+    def test_aligned_front_still_requires_its_own_finite_evidence(self):
+        core = MotionController(Config(align_legacy_heading=True,
+                                       lidar_yaw=math.radians(-165)))
+        msg = scan()
+        for i in range(len(msg.ranges)):
+            angle = msg.angle_min + i * msg.angle_increment - math.radians(165)
+            if abs(math.atan2(math.sin(angle), math.cos(angle))) < math.radians(16):
+                msg.ranges[i] = math.inf
+        result = feed(core, 100, msg)
+        self.assertEqual(result.command, Command())
+        self.assertEqual(result.reason, 'front_evidence_missing')
+
     def test_changed_data_reusing_a_stamp_is_rejected_and_stops(self):
         core = MotionController()
         release(core)
@@ -249,6 +311,36 @@ def stamp_at(msg, t):
 
 
 class DecisionTests(unittest.TestCase):
+    def test_aligned_front_obstacle_selects_checked_stationary_turn(self):
+        core = MotionController(Config(align_legacy_heading=True,
+                                       lidar_yaw=math.radians(-165)))
+
+        def scene(t):
+            angle = math.radians(165)
+            return obstacle(scan(t), .6 * math.cos(angle), .6 * math.sin(angle), 4)
+
+        result = release(core, factory=scene)
+        self.assertEqual(result.command.v, 0)
+        self.assertGreater(abs(result.command.w), 0)
+        self.assertEqual(result.reason, 'stationary_turn')
+        self.assertTrue(core.check(result.command).usable)
+
+    def test_aligned_turn_resumes_forward_when_observed_route_opens(self):
+        core = MotionController(Config(align_legacy_heading=True,
+                                       lidar_yaw=math.radians(-165)))
+
+        def blocked(t):
+            angle = math.radians(165)
+            return obstacle(scan(t), .6 * math.cos(angle), .6 * math.sin(angle), 4)
+
+        turning = release(core, factory=blocked)
+        self.assertGreater(abs(turning.command.w), 0)
+        for i in range(15):
+            result = feed(core, 101 + i * .16)
+            self.assertTrue(core.check(result.command).usable)
+        self.assertGreater(result.command.v, 0)
+        self.assertEqual(result.command.w, 0)
+
     def test_cached_geometry_does_not_cache_collision_coverage_or_age(self):
         core = MotionController()
         feed(core, 100)

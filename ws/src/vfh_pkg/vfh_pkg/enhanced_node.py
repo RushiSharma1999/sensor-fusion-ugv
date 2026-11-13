@@ -46,6 +46,8 @@ class EnhancedAvoidance:
         node.get_logger().info(
             f'Enhanced LiDAR-only controller: profile={self.cfg.speed_profile} '
             f'requested_limits={self.core.limits} geometry={self.cfg.geometry_mode} '
+            f'align_legacy_heading={self.cfg.align_legacy_heading} '
+            f'configured_lidar_yaw_rad={self.cfg.lidar_yaw:.6f} '
             f'curves={self.cfg.enable_curves}; '
             'legacy geometry/model are unverified until measured')
 
@@ -116,6 +118,11 @@ class EnhancedAvoidance:
             record.update(
                 event='motion',
                 geometry=self.cfg.geometry_mode,
+                geometry_reference=(self.cfg.base_frame if self.cfg.geometry_mode == 'polygon'
+                                    else 'lidar_origin_heading_aligned'
+                                    if self.cfg.align_legacy_heading else self.cfg.scan_frame),
+                scan_to_geometry_yaw_rad=(self.core.scan.mount.yaw
+                                          if self.core.scan is not None else None),
                 coverage_max_gap_deg=self.cfg.coverage_max_gap_deg,
                 compute_elapsed_sec=compute_elapsed,
                 compute_budget_sec=self.cfg.control_compute_budget_sec,

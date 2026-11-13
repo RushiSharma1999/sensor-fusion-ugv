@@ -15,6 +15,7 @@ The calibration assertions must describe measurements, not merely enable flags.
 | `scan_frame` | `unilidar_lidar` | frame | Required incoming LaserScan frame ID. |
 | `base_frame` | `base_link` | frame | Measured polygon and rotation-reference frame; unused as a physical assumption in legacy mode. |
 | `geometry_mode` | `legacy_envelope` | name | legacy_envelope (scan-reference fallback) or measured convex polygon. |
+| `align_legacy_heading` | `false` | bool | Explicitly rotate legacy scan points by lidar_yaw into heading-aligned axes at the LiDAR origin. No x/y translation, TF or polygon combination is allowed. Does not assert footprint/pivot calibration or enable curves. |
 | `footprint_xy` | `[]` | JSON string, m | Strictly convex CCW vertices [[x,y],…] around base origin; empty only in legacy mode. |
 | `robot_radius` | `0.2` | m | Existing configured fallback radius; not a measured chassis dimension. Polygon mode uses vertices instead. |
 | `safety_margin` | `0.16` | m | Outward footprint inflation, retained in both geometry modes; do not shrink to suppress stops. |
@@ -22,7 +23,7 @@ The calibration assertions must describe measurements, not merely enable flags.
 | `mounting_calibrated` | `false` | bool | Operator assertion that configured polygon mount was measured, including zero offsets. |
 | `lidar_x` | `0.0` | m | Scan origin x in base frame; polygon/configured only. |
 | `lidar_y` | `0.0` | m | Scan origin y in base frame; polygon/configured only. |
-| `lidar_yaw` | `0.0` | rad | Scan axes yaw in base frame; positive CCW; polygon/configured only. |
+| `lidar_yaw` | `0.0` | rad | Scan-to-geometry yaw, positive CCW. Used in polygon/configured mode, or explicitly with align_legacy_heading in the fallback. The latter leaves the origin at the LiDAR; it is not a measured base_link transform. |
 | `transform_timeout_sec` | `0.1` | s | Maximum nonstatic TF stamp difference from scan stamp. Missing TF stops. |
 | `enable_curves` | `false` | bool | Requires polygon, valid mount and motion_model_calibrated; false preserves straight/spin fallback. |
 | `motion_model_calibrated` | `false` | bool | Operator assertion that nominal gains and absolute errors bound measured motion over the horizon. |
