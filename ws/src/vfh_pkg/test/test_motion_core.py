@@ -249,6 +249,52 @@ def stamp_at(msg, t):
 
 
 class DecisionTests(unittest.TestCase):
+    def test_cached_geometry_does_not_cache_collision_coverage_or_age(self):
+        core = MotionController()
+        feed(core, 100)
+        motion = Command(.05, 0)
+        self.assertTrue(core.check(motion).usable)
+        self.assertTrue(core.check(motion).usable)
+        self.assertGreater(core._swept_geometry.cache_info().hits, 0)
+        core.observe(obstacle(scan(101), .25, 0), 101, 101_000_000_000)
+        self.assertFalse(core.check(motion).usable)
+        core.observe(scan(102, distance=math.inf), 102, 102_000_000_000)
+        self.assertFalse(core.check(motion).usable)
+        core.observe(scan(103, distance=1.1), 103, 103_000_000_000)
+        fresh = core.check(motion)
+        core.check_age = .35
+        older = core.check(motion)
+        self.assertTrue(older.usable)
+        self.assertLess(older.clearance, fresh.clearance)
+
+    def test_cached_and_uncached_spatial_results_match(self):
+        for cfg in (Config(), polygon_config()):
+            cached = MotionController(cfg)
+            reference = MotionController(cfg)
+            reference._swept_geometry = reference._build_swept_geometry
+            for i, distance in enumerate((4, 1.5, .7, .25, math.inf)):
+                now = 100 + i
+                msg = scan(now, distance)
+                for core in (cached, reference):
+                    core.observe(msg, now, round(now * 1e9))
+                for age in (0, .2, .35):
+                    cached.check_age = reference.check_age = age
+                    for motion in (Command(), Command(.05, 0), Command(.025, .12),
+                                   Command(0, .25), Command(0, -.25)):
+                        self.assertEqual(cached.check(motion), reference.check(motion))
+
+    def test_hazard_measurement_survives_repeated_stopped_ticks(self):
+        core = MotionController()
+        release(core)
+        first = feed(core, 101, obstacle(scan(101), .25, 0))
+        repeated = core.tick(101.04, 101_040_000_000)
+        self.assertEqual(first.command, Command())
+        self.assertEqual(repeated.command, Command())
+        self.assertEqual(first.last_hazard, repeated.last_hazard)
+        self.assertAlmostEqual(repeated.last_hazard['range_m'], .25)
+        self.assertAlmostEqual(repeated.last_hazard['bearing_deg'], 0)
+        self.assertEqual(repeated.last_hazard['stamp_ns'], 101_000_000_000)
+
     def test_wire_resolution_preserves_normal_deceleration_limit(self):
         core = MotionController()
         for i in range(30):

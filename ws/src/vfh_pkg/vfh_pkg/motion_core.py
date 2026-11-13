@@ -1,12 +1,13 @@
 """Deterministic LiDAR-only selection, freshness, transitions and output limiting."""
 
 from dataclasses import dataclass, field
+from functools import lru_cache
 import math
 
 from esp_bridge.speed_profiles import speed_limits
 
 from .motion_geometry import (check_polygon, inflate, make_footprint, minimum_clearance, Mount,
-                              path_clearance, swept_polygon, TAU)
+                              path_clearance, signed_clearance, swept_polygon, TAU)
 
 
 @dataclass(frozen=True)
@@ -262,6 +263,7 @@ class Decision:
     observation: int = 0
     observation_status: str = 'none'
     confirm_count: int = 0
+    last_hazard: dict = field(default_factory=dict)
 
 
 def limit_axis(previous, target, dt, accel, decel):
@@ -316,6 +318,15 @@ class MotionController:
         self.check_age = 0.0
         self.metrics_sequence = -1
         self.metrics = None
+        # Only invariant geometry is cached. Scan endpoints, coverage, acquisition
+        # age padding, candidate selection and final command checks stay live.
+        self._swept_geometry = lru_cache(maxsize=128)(self._build_swept_geometry)
+        radius = max(math.hypot(*p) for p in self.footprint)
+        self._age_speed = (self.limits.linear * config.linear_model_scale
+                           + config.linear_model_error
+                           + radius * (self.limits.angular * config.angular_model_scale
+                                       + config.angular_model_error))
+        self.last_hazard = {}
 
     def invalidate(self, reason):
         self.input_fault = reason
@@ -351,22 +362,18 @@ class MotionController:
         self.observation_status = 'accepted'
         return True
 
+    def _build_swept_geometry(self, command):
+        return swept_polygon(self.footprint, command.v, command.w, self.cfg.horizon_sec,
+                             self.cfg.sweep_step_sec, self.cfg.linear_model_scale,
+                             self.cfg.angular_model_scale, self.cfg.linear_model_error,
+                             self.cfg.angular_model_error)
+
     def check(self, command):
-        swept = swept_polygon(self.footprint, command.v, command.w, self.cfg.horizon_sec,
-                              self.cfg.sweep_step_sec, self.cfg.linear_model_scale,
-                              self.cfg.angular_model_scale, self.cfg.linear_model_error,
-                              self.cfg.angular_model_error)
+        swept = self._swept_geometry(command)
         # The robot can have moved since acquisition. Bound that displacement;
         # this is uncertainty padding, never claimed measured progress.
-        radius = max(math.hypot(*p) for p in self.footprint)
-        age_speed = (self.limits.linear *
-                     self.cfg.linear_model_scale +
-                     self.cfg.linear_model_error +
-                     radius *
-                     (self.limits.angular *
-                      self.cfg.angular_model_scale +
-                      self.cfg.angular_model_error))
-        swept = inflate(swept, (self.check_age + self.cfg.control_compute_budget_sec) * age_speed)
+        swept = inflate(swept, (self.check_age + self.cfg.control_compute_budget_sec)
+                        * self._age_speed)
         return check_polygon(self.scan, swept, math.radians(self.cfg.coverage_max_gap_deg))
 
     def begin_recovery(self, now):
@@ -383,6 +390,7 @@ class MotionController:
         decision.passing_side = self.side
         decision.recovery_age = 0 if self.recovery_started is None else now - self.recovery_started
         decision.confirm_count = self.gate.count
+        decision.last_hazard = dict(self.last_hazard)
         self.last_publication = now
         return decision
 
@@ -475,6 +483,15 @@ class MotionController:
         current, path, d.side_left_clearance, d.side_right_clearance = self.metrics
         d.path_clearance, d.footprint_clearance = path, current
         if current <= 0:
+            point = min(scan.points, key=lambda p: signed_clearance(p, self.footprint))
+            sensor_point = scan.mount.inverse(point)
+            self.last_hazard = {
+                'observation': scan.sequence, 'stamp_ns': scan.stamp_ns,
+                'range_m': math.hypot(*sensor_point),
+                'bearing_deg': math.degrees(math.atan2(sensor_point[1], sensor_point[0])),
+                'footprint_x_m': point[0], 'footprint_y_m': point[1],
+                'footprint_clearance_m': current,
+            }
             self.invalidate('observed_hazard_inside_footprint_envelope')
             self.begin_recovery(now)
             return self.stop(d, self.input_fault, now)

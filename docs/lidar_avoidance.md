@@ -316,3 +316,7 @@ rebuild to re-enable selection. Never rebuild or change checkouts with motors on
 All enhanced defaults, units and parameter meanings are listed in
 [enhanced_parameters.md](enhanced_parameters.md). Actual executed checks and
 environment limits are recorded in [validation.md](validation.md).
+
+See the [recorded-scan computation follow-up](scan_series_findings.md) for the
+Jetson command-interruption investigation, bounded geometry cache, retained
+hazard-point diagnostics and exact update/retest commands.

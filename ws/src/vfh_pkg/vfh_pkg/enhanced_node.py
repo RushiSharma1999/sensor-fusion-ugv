@@ -87,6 +87,7 @@ class EnhancedAvoidance:
         # A slow planning tick must not publish motion based on an age captured
         # before computation. Recheck at publication, independently of callbacks.
         published_at = time.monotonic()
+        compute_elapsed = published_at - now
         if self.core.scan is not None:
             scan = self.core.scan
             age = max(published_at - scan.received + max(0, scan.source_age),
@@ -96,7 +97,7 @@ class EnhancedAvoidance:
                 self.core.invalidate('scan_timeout_during_planning')
                 self.core.begin_recovery(published_at)
                 self.core.stop(decision, 'scan_timeout_during_planning', published_at)
-        if published_at - now > self.cfg.control_compute_budget_sec:
+        if compute_elapsed > self.cfg.control_compute_budget_sec:
             self.core.begin_recovery(published_at)
             self.core.stop(decision, 'control_compute_budget_exceeded', published_at)
         msg = Twist()
@@ -116,6 +117,9 @@ class EnhancedAvoidance:
                 event='motion',
                 geometry=self.cfg.geometry_mode,
                 coverage_max_gap_deg=self.cfg.coverage_max_gap_deg,
+                compute_elapsed_sec=compute_elapsed,
+                compute_budget_sec=self.cfg.control_compute_budget_sec,
+                swept_geometry_cache=self.core._swept_geometry.cache_info()._asdict(),
                 arrival_age_sec=None if self.core.last_arrival is None else now -
                 self.core.last_arrival,
                 accepted_age_sec=None if self.core.last_accepted is None else now -
