@@ -26,6 +26,12 @@ class LauncherTests(unittest.TestCase):
             self.assertIn('-p speed_profile:="$speed_profile"', command)
             self.assertNotIn('max_linear_speed', command)
             self.assertNotIn('forward_speed', command)
+        self.assertIn('controller_params=(--params-file "$params")', body)
+        self.assertIn('bridge_params=(--params-file "$params")', body)
+        self.assertIn('"${controller_params[@]}"', commands[0])
+        self.assertIn('"${bridge_params[@]}"', commands[1])
+        self.assertLess(commands[1].index('"${bridge_params[@]}"'),
+                        commands[1].index('-p dry_run:="$dry"'))
         self.assertIn('cloud_scan_num:=36', body)
         self.assertIn('exec bash "$root/run_continuous_bot.sh" "$@"',
                       (ROOT / 'run_cloud36_test.sh').read_text())

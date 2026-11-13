@@ -245,6 +245,66 @@ class SerialSafetyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.make(max_linear_speed=.03)
 
+    def test_angular_sign_maps_both_directions_after_shared_limits(self):
+        for sign in (-1, 1):
+            for profile in ('conservative', 'open_space'):
+                node = self.make(dry_run=False, angular_command_sign=sign,
+                                 speed_profile=profile)
+                self.command(.05, .25)
+                self.assertEqual(node.ser.written, ['STOP\n'])
+                self.ack()
+                for requested in (-1, 1):
+                    self.command(1, requested)
+                    expected_w = sign * requested * .25
+                    self.assertEqual(node.ser.written[-1],
+                                     f'CMD v {speed_limits(profile).linear:.3f} '
+                                     f'w {expected_w:.3f}\n')
+                self.command(-.05, -.25)
+                self.assertEqual(node.ser.written[-1],
+                                 f'CMD v 0.000 w {-sign * .25:.3f}\n')
+                self.assertTrue(any(f'angular_command_sign={sign}' in x for x in node.logs))
+
+    def test_inverted_angular_sign_preserves_stops_and_fault_latches(self):
+        node = self.make(dry_run=True, angular_command_sign=-1)
+        self.ack()
+        self.command(.05, .25)
+        self.assertEqual(node.ser.written[-1], 'CMD v 0.000 w 0.000\n')
+        node.dry_run = False
+        self.command(.05, .25)
+        self.assertEqual(node.ser.written[-1], 'CMD v 0.050 w -0.250\n')
+        self.advance(.251)
+        node.on_cmd_timer()
+        self.assertEqual(node.ser.written[-1], 'CMD v 0.000 w 0.000\n')
+        for value in (float('nan'), float('inf')):
+            self.command(.05, value)
+            self.assertEqual(node.ser.written[-1], 'CMD v 0.000 w 0.000\n')
+        node.ser.fail_write = True
+        self.command()
+        node.ser.fail_write = False
+        self.assertTrue(node.serial_fault)
+        before = len(node.ser.written)
+        self.advance(.3)
+        self.command()
+        self.assertTrue(all(x == 'STOP\n' for x in node.ser.written[before:]))
+        node.ser.ack_on_stop = True
+        node.close()
+        self.assertEqual(node.ser.written[-1], 'STOP\n')
+        self.assertIn('Final STOP acknowledgement observed=1', node.logs)
+        node = self.make(dry_run=False, angular_command_sign=-1)
+        self.ack()
+        node.ser.incoming = b'READY ESP32\n'
+        node.on_rx_timer()
+        self.ack()
+        self.assertTrue(node.serial_fault)
+        self.assertFalse(node.stop_acknowledged)
+
+    def test_invalid_angular_sign_rejected_before_opening_serial(self):
+        for value in (0, 2, -2, True, 1.0, float('nan'), 'invert'):
+            with patch.object(BRIDGE.serial, 'Serial') as port:
+                with self.assertRaises(ValueError):
+                    self.make(angular_command_sign=value)
+                port.assert_not_called()
+
     def test_shutdown_stop_ack_and_fault_reporting(self):
         for fault in (False, True):
             node = self.make(dry_run=False)

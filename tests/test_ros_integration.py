@@ -146,6 +146,51 @@ class RosIntegrationTests(unittest.TestCase):
         self.assertFalse(node.enhanced.cfg.mounting_calibrated)
         self.assertFalse(node.enhanced.cfg.enable_curves)
 
+    def test_heading_aligned_turn_brakes_then_resumes_forward_without_type_failure(self):
+        profile = (Path(__file__).resolve().parents[1]
+                   / 'ws/src/vfh_pkg/config/heading_marker.yaml')
+        node = self.controller(cli_args=['--ros-args', '--params-file', str(profile)])
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'ws/src/esp_bridge/test'))
+        from test_serial_safety import SerialPort
+        with patch('esp_bridge.cmd_vel_to_serial.serial.Serial', SerialPort):
+            bridge = CmdVelToSerial(
+                cli_args=['--ros-args', '--params-file', str(profile)],
+                parameter_overrides=[Parameter('dry_run', value=False),
+                                     Parameter('cmd_vel_topic', value='/test_motion_cmd')])
+        self.nodes.append(bridge)
+        self.executor.add_node(bridge)
+        self.assertEqual(bridge.angular_command_sign, -1)
+        self.assertEqual(bridge.ser.written, ['STOP\n'])
+        bridge.ser.incoming = b'ACK STOP\n'
+        self.spin(.1)
+
+        def blocked():
+            msg = self.scan()
+            for i in range(341, 350):
+                msg.ranges[i] = .6
+            self.pub.publish(msg)
+
+        self.spin(1.2, blocked)
+        self.assertTrue(any(m.linear.x == 0 and m.angular.z > 0 for _, m in self.received))
+        turning = node.enhanced.core.previous.w
+        self.assertGreater(turning, 0)
+        self.assertIn('CMD v 0.000 w -0.250\n', bridge.ser.written)
+        self.received.clear()
+        # Synthetic route opening, not measured robot rotation. Residual angular
+        # output must brake with integer zero in the core's translation command.
+        self.spin(1.6, lambda: self.pub.publish(self.scan()))
+        self.assertTrue(any(m.linear.x == 0 and 0 < m.angular.z < turning
+                            for _, m in self.received))
+        self.assertTrue(any(m.linear.x > 0 and m.angular.z == 0 for _, m in self.received))
+        self.assertTrue(all(m.linear.x == 0 or m.angular.z == 0 for _, m in self.received))
+        self.assertGreater(self.received[-1][1].linear.x, 0)
+        self.assertTrue(any(line.startswith('CMD v 0.0') and ' w 0.000' in line
+                            and float(line.split()[2]) > 0 for line in bridge.ser.written))
+        self.assertFalse(any(float(line.split()[4]) > 0 for line in bridge.ser.written
+                             if line.startswith('CMD ')))
+        bridge.ser.ack_on_stop = True
+        bridge.close()
+
     def test_preserved_baseline_still_publishes_and_has_profile_limits(self):
         node = self.controller('baseline')
         self.spin(1.4, lambda: self.pub.publish(self.scan()))

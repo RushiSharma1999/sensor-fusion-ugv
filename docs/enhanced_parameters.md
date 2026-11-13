@@ -74,6 +74,25 @@ profile and explicit overrides must match it. `trace_commands=true` and
 `firmware_debug=true` preserve wire/firmware trace output. Telemetry retains
 `ultra_timeout_sec=0.6` s; those readings do not influence enhanced avoidance.
 
+`angular_command_sign` is a bridge-only integer, default `+1`, allowed values
+`-1` or `+1`. It maps the limited ROS angular request to serial exactly once:
+`w_wire = angular_command_sign * planned_w`; the planner retains positive-left,
+counterclockwise axes. Dry-run/expiry/nonfinite stops still send exact zeros,
+and sign selection changes neither speed ceilings nor reverse protection.
+Invalid signs fail before opening serial. Startup and TX traces report the
+sign, ROS input/limited requests and exact wire values. Firmware debug labels
+and existing ODOM telemetry are passed through; they are not calibrated motion
+feedback or used by the enhanced controller.
+
+The optional `--params` file is passed to both nodes. Put controller settings
+under `vfh_obstacle_avoidance.ros__parameters` and bridge settings under
+`cmd_vel_to_serial.ros__parameters`. Launcher motor/dry-run, speed profile and
+reverse selections are applied after the file. `heading_marker.yaml` explicitly
+selects `angular_command_sign=-1` for this user's confirmed clockwise response
+to positive serial w. Other installations retain `+1` unless measured otherwise.
+This serial sign is independent of `lidar_yaw`; changing yaw cannot fix motor
+polarity.
+
 | Profile | Controller requested linear ceiling | Bridge linear ceiling | Angular ceiling |
 | --- | ---: | ---: | ---: |
 | conservative | 0.05 m/s | 0.05 m/s | 0.25 rad/s |

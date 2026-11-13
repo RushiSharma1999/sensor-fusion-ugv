@@ -37,6 +37,7 @@ class CmdVelToSerial(Node):
         self.declare_parameter('cmd_timeout_sec', 0.25)
         self.declare_parameter('max_linear_speed', profile.linear)
         self.declare_parameter('max_angular_speed', profile.angular)
+        self.declare_parameter('angular_command_sign', 1)
         self.declare_parameter('allow_reverse', False)
         self.declare_parameter('ultra_timeout_sec', 0.6)
 
@@ -50,6 +51,9 @@ class CmdVelToSerial(Node):
         self.rate_hz = float(self.get_parameter('rate_hz').value)
         self.rx_hz = float(self.get_parameter('rx_hz').value)
         self.debug_serial = bool(self.get_parameter('debug_serial').value)
+        self.angular_command_sign = self.get_parameter('angular_command_sign').value
+        if type(self.angular_command_sign) is not int or self.angular_command_sign not in (-1, 1):
+            raise ValueError('angular_command_sign must be integer -1 or +1')
 
         cmd_vel_topic = self.get_parameter('cmd_vel_topic').value
         odom_topic = self.get_parameter('odom_topic').value
@@ -114,7 +118,8 @@ class CmdVelToSerial(Node):
 
         self.get_logger().warn(
             f'dry_run={self.dry_run}; limits v={self.max_linear_speed:.3f} '
-            f'w={self.max_angular_speed:.3f}; waiting for firmware ACK STOP'
+            f'w={self.max_angular_speed:.3f}; angular_command_sign={self.angular_command_sign}; '
+            'waiting for firmware ACK STOP'
         )
         self.send_stop()
         self.get_logger().info(
@@ -170,7 +175,10 @@ class CmdVelToSerial(Node):
             reason = 'dry_run/' + reason
             v_wire = w_wire = 0.0
         else:
-            v_wire, w_wire = v, w
+            # Keep planning/limiting in ROS axes. Map to this installation's
+            # serial angular convention only at the wire boundary, exactly once.
+            v_wire = v
+            w_wire = self.angular_command_sign * w if w else 0.0
         line = f'CMD v {v_wire:.3f} w {w_wire:.3f}\n'
         self.tx_sequence += 1
         sent = self.write_serial(line)
@@ -179,7 +187,8 @@ class CmdVelToSerial(Node):
             self.get_logger().info(
                 f'TX seq={self.tx_sequence} elapsed={now-self.started_at:.3f} '
                 f'age={age:.3f} in_v={v_in:.4f} in_w={w_in:.4f} '
-                f'planned_v={v:.4f} planned_w={w:.4f} wire="{line.strip()}" '
+                f'planned_v={v:.4f} planned_w={w:.4f} '
+                f'angular_command_sign={self.angular_command_sign} wire="{line.strip()}" '
                 f'reason={reason} sent={int(sent)}'
             )
             self.last_trace_time, self.last_trace_key = now, key

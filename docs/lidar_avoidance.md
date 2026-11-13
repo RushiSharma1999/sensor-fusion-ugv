@@ -72,7 +72,12 @@ translation or chassis-centre assumption is introduced; x/y offsets and TF still
 require polygon mode. `heading_marker.yaml` contains the initial -165-degree
 estimate from the user's confirmed front-marker capture. It is selectable and
 requires motors-off verification, not an automatically applied calibration.
-See [heading alignment](heading_alignment.md) for the exact commands and limits.
+The same optional profile now includes the bridge's `angular_command_sign=-1`
+for the user's confirmed clockwise response to positive serial commands. The
+launcher passes node-scoped `--params` settings to both nodes. Planning stays
+in ROS positive-left axes; the bridge maps only the final serial angular sign.
+See [heading alignment](heading_alignment.md) for the crash fix, direction checks,
+exact commands and limits.
 
 For accurate geometry select `polygon`, enter the full physical footprint
 including protrusions as strictly convex CCW JSON vertices in `base_frame`,

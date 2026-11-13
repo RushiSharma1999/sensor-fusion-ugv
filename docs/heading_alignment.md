@@ -68,6 +68,52 @@ Python 3.10 grammar checks. The complete package suites reported 54 tests:
 esp_bridge), and two copyright skips. Jetson/Humble execution and physical
 heading/turning validation remain to be performed on the robot.
 
+## Turn-to-forward crash and angular polarity follow-up
+
+In run `continuous-20261113-154639-5185`, the controller commanded stationary
+turns at w=+0.25 with usable coverage. Before the failure the front/path evidence
+opened (raw_front=1.7256 m, path_clearance=1.3694 m). The process then raised
+`AssertionError: The 'x' field must be of type 'float'` at Twist assignment,
+not a recovery-budget or obstacle stop. When a straight candidate replaces a
+turn, the core intentionally holds translation at integer zero while residual
+angular output decelerates. Assigning that zero directly to a ROS double field
+caused the crash. The adapter now explicitly converts both components to floats;
+geometry, final-command checks and guards are unchanged.
+
+The bridge subsequently expired the lost command and final STOP ACK was observed.
+That demonstrates the logged shutdown path, not improved physical avoidance.
+The uploaded `heading_marker.yaml` is the previous parameter file, not a scan or
+motors-off log; its contents alone cannot establish the marker verification.
+
+The user separately confirmed that positive serial w rotated the body clockwise
+when viewed from above, despite firmware's `SPIN LEFT` label. The profile now
+also sets bridge `angular_command_sign=-1`. The launcher loads this node-scoped
+file in both controller and bridge; no firmware change is needed. Positive ROS
+w remains a left/counterclockwise request, sent as negative serial w on this
+installation. Negative ROS w maps oppositely. No sign is applied to the scan
+or planner commands, and default bridge behavior remains +1 without the profile.
+Do not infer physical direction from firmware text labels or fix it by changing
+the LiDAR yaw. This command correction does not establish scan-axis handedness;
+physical left/right marker checks are still required.
+
+The new ROS regression uses synthetic blocked/front-clear scans, actual ROS
+messages/timers, this shared YAML and a fake serial port. Before the fix it
+reproduced a ROS Vector3 float assertion during turn braking; after the fix it
+checks a positive planner turn mapped to negative wire w, zero translation
+through angular braking, and forward resumption with zero angular output.
+Three new fake-serial checks cover both signs/profiles, clamps, startup ACK,
+dry-run, expiry, nonfinite commands, fault/reboot latches, shutdown and invalid
+sign rejection before serial open. These are software tests, not a physical ride.
+
+Executed after both fixes: 53 offline functional checks (35 core, 16 serial,
+two launcher) and eight ROS integration checks passed. Both packages built in
+the available Jazzy container; installed YAML matched the source. Targeted
+Flake8/PEP257, Python 3.10 grammar, Python compilation, shell syntax and diff
+checks passed. Full package suites reported 57 tests: 53 passed, two existing
+Flake8 failures and two copyright skips. This update has not been executed on
+Jetson/Humble or with hardware; the user-provided physical log is from before
+the fixes.
+
 ## Jetson update and motors-off verification
 
 Keep motor power off. Select the existing review branch and update without force
@@ -82,7 +128,10 @@ cd ~/sensor-fusion-ugv-old-migration && bash run_cloud36_test.sh --dry-run --beh
 ```
 
 Use the same `--params` argument in subsequent runs to select the correction.
-The bare launcher defaults do not enable it. With the stationary front marker
+The bare launcher defaults do not enable it. Use the updated repository copy of
+`heading_marker.yaml`: the user's earlier uploaded copy has no bridge section,
+so using that old copy would keep the old +1 angular mapping.
+With the stationary front marker
 again about one metre away, verify:
 
 - Startup reports `align_legacy_heading=True`, yaw near -2.879793 rad, and
@@ -102,6 +151,13 @@ again about one metre away, verify:
   swept clearance are usable. Keep the box outside the configured 0.36 m
   envelope. Inside-envelope returns must stop both axes, and unknown coverage
   or stale scans must also stop. Do not bypass a guard to obtain a turn.
+- Bridge startup must report `angular_command_sign=-1`. During a turn, its TX
+  log's `in_w`/`planned_w` remain the planner's ROS request. Dry-run wire values
+  remain zero, so motor direction cannot be verified at this stage.
+- Still in dry-run, move the front box aside to create a genuinely usable route.
+  The angular request should decelerate to zero, then linear requests should
+  resume with no traceback. If a guard stops the request, retain its reason;
+  do not remove the guard.
 - The bridge is in dry-run: all wire velocities stay zero. Check startup and
   final STOP acknowledgements and retain the vfh/bridge logs.
 
@@ -111,6 +167,14 @@ floor comparison stages. At the wheels-raised motor stage, retain the profile:
 ```bash
 cd ~/sensor-fusion-ugv-old-migration && bash run_cloud36_test.sh --motors --behavior enhanced --speed-profile conservative --params "$PWD/ws/src/vfh_pkg/config/heading_marker.yaml"
 ```
+
+Before a floor run, verify wheel directions with wheels raised: a positive
+planner request must produce negative serial w and wheel motion corresponding
+to a counterclockwise body turn (left wheels reverse, right wheels forward).
+A negative planner request must do the opposite. Keep a cutoff available and
+stop if directions disagree. Wheels raised do not measure actual body rotation.
+The subsequent conservative floor stage must verify that the body actually
+turns in the intended direction and resumes only when the sensed route opens.
 
 Stop with Ctrl+C or the existing `--stop` command. A stationary wheels-raised
 robot cannot demonstrate route-opening through actual body rotation, and can

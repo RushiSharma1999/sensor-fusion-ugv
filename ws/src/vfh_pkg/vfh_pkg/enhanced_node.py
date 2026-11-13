@@ -103,7 +103,10 @@ class EnhancedAvoidance:
             self.core.begin_recovery(published_at)
             self.core.stop(decision, 'control_compute_budget_exceeded', published_at)
         msg = Twist()
-        msg.linear.x, msg.angular.z = decision.command.v, decision.command.w
+        # The core may use integer zero while braking a turn. ROS double fields
+        # require Python floats even when the numeric value is exactly zero.
+        msg.linear.x = float(decision.command.v)
+        msg.angular.z = float(decision.command.w)
         self.cmd_pub.publish(msg)
         self.core.last_publication = published_at
         key = (decision.state, decision.reason, decision.passing_side)

@@ -18,3 +18,10 @@ vfh_obstacle_avoidance:
     mounting_calibrated: false
     motion_model_calibrated: false
     enable_curves: false
+
+# This installation physically turns clockwise for positive serial w, confirmed
+# by the user viewing the body from above. Restore ROS positive = left/CCW.
+# The launcher passes this node-scoped file to both controller and bridge.
+cmd_vel_to_serial:
+  ros__parameters:
+    angular_command_sign: -1

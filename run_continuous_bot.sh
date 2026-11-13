@@ -37,11 +37,13 @@ fi
 case $mode in --dry-run) dry=true;; --motors) dry=false;; esac
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 controller_params=()
+bridge_params=()
 if [[ -n $params ]]; then
     if [[ $behavior != enhanced || $params != /* || ! -f $params ]]; then
         echo '--params requires enhanced behavior and an existing absolute parameter file'; exit 2
     fi
     controller_params=(--params-file "$params")
+    bridge_params=(--params-file "$params")
 fi
 if [[ ! -f "$root/ws/install/local_setup.bash" ]]; then
     echo "Missing build: $root/ws/install/local_setup.bash"; exit 1
@@ -102,7 +104,7 @@ if [[ $behavior == baseline ]]; then
     controller_params+=(-p continuous_avoidance:=true -p min_speed:=0.02 -p escape_turn_rate:=0.25 -p hazard_escape_turn_rate:=0.25 -p front_stop_dist:=0.65 -p hard_turn_dist:=0.85 -p front_slowdown_dist:=1.2)
 fi
 start vfh ros2 run vfh_pkg vfh_node --ros-args "${controller_params[@]}" -r /cmd_vel_vfh:=/diagnostic/cmd_vel_vfh -r /cmd_vel:=/diagnostic/cmd_vel_vfh -p behavior:="$behavior" -p speed_profile:="$speed_profile"
-start bridge ros2 run esp_bridge cmd_vel_to_serial --ros-args -p port:=/dev/serial/by-id/usb-1a86_USB_Single_Serial_5A84021142-if00 -p baud:=115200 -p cmd_vel_topic:=/diagnostic/cmd_vel_vfh -r /cmd_vel:=/diagnostic/cmd_vel_vfh -p dry_run:="$dry" -p firmware_debug:=true -p speed_profile:="$speed_profile" -p allow_reverse:=false
+start bridge ros2 run esp_bridge cmd_vel_to_serial --ros-args "${bridge_params[@]}" -p port:=/dev/serial/by-id/usb-1a86_USB_Single_Serial_5A84021142-if00 -p baud:=115200 -p cmd_vel_topic:=/diagnostic/cmd_vel_vfh -r /cmd_vel:=/diagnostic/cmd_vel_vfh -p dry_run:="$dry" -p firmware_debug:=true -p speed_profile:="$speed_profile" -p allow_reverse:=false
 printf 'Behavior: %s; requested speed profile: %s\n' "$behavior" "$speed_profile"
 printf 'Mode: %s. No overall timer. Ctrl+C stops the stack.\nLogs: %s\n' "$mode" "$logs"
 tail -n 0 -F "$logs/vfh.log" "$logs/bridge.log" &
