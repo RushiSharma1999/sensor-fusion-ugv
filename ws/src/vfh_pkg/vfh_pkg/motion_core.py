@@ -6,8 +6,9 @@ import math
 
 from esp_bridge.speed_profiles import speed_limits
 
-from .motion_geometry import (check_polygon, inflate, make_footprint, minimum_clearance, Mount,
-                              path_clearance, signed_clearance, swept_polygon, TAU)
+from .motion_geometry import (check_polygon, CoverageGap, inflate, make_footprint,
+                              minimum_clearance, Mount, path_clearance, signed_clearance,
+                              swept_polygon, TAU)
 
 
 @dataclass(frozen=True)
@@ -150,6 +151,7 @@ class Scan:
     front_count: int
     side_left: float
     side_right: float
+    max_finite_gap_deg: float
 
 
 def parse_scan(msg, received, ros_now_ns, sequence, config, mount=None):
@@ -214,9 +216,13 @@ def parse_scan(msg, received, ros_now_ns, sequence, config, mount=None):
             right.append(r)
         key = round(angle % TAU, 10)
         beams[key] = min(r, beams.get(key, math.inf))
-    return Scan(stamp_ns, received, age, sequence, tuple(points), tuple(sorted(beams.items())),
+    ordered = tuple(sorted(beams.items()))
+    largest_gap = max((ordered[(i + 1) % len(ordered)][0] - a) % TAU
+                      for i, (a, _) in enumerate(ordered)) if len(ordered) >= 2 else TAU
+    return Scan(stamp_ns, received, age, sequence, tuple(points), ordered,
                 mount, min(front, default=math.nan), len(front),
-                min(left, default=math.nan), min(right, default=math.nan))
+                min(left, default=math.nan), min(right, default=math.nan),
+                math.degrees(largest_gap))
 
 
 @dataclass
@@ -262,6 +268,9 @@ class Decision:
     side_right_clearance: float = math.nan
     scan_age: float = math.inf
     coverage: float = 0.0
+    coverage_gap: CoverageGap = None
+    finite_beams: int = 0
+    max_finite_gap_deg: float = math.nan
     swept_clearance: float = math.nan
     passing_side: int = 0
     recovery_age: float = 0.0
@@ -452,6 +461,9 @@ class MotionController:
         self.last_tick = now
         d = Decision(passing_side=self.side, observation=self.sequence,
                      observation_status=self.observation_status)
+        if self.scan is not None:
+            d.finite_beams = len(self.scan.beams)
+            d.max_finite_gap_deg = self.scan.max_finite_gap_deg
         if (self.recovery_started is not None
                 and now - self.recovery_started >= cfg.recovery_budget_sec):
             self.latched = True
@@ -502,6 +514,7 @@ class MotionController:
             return self.stop(d, self.input_fault, now)
         stationary_check = self.check(Command())
         d.coverage = stationary_check.coverage
+        d.coverage_gap = stationary_check.coverage_gap
         if not stationary_check.usable:
             self.invalidate(stationary_check.reason)
             self.begin_recovery(now)
@@ -603,11 +616,19 @@ class MotionController:
         if (limited.w or front < cfg.high_speed_clearance
                 or current < cfg.high_speed_footprint_clearance):
             limited = Command(min(self.conservative_speed, limited.v), limited.w)
+        braking_for_turn = False
         if not cfg.enable_curves and limited.v > 0 and limited.w != 0:
-            # Brake angular motion before uncalibrated straight travel.
-            limited = Command(0, limited.w)
+            if self.previous.v > 0 and self.previous.w == 0:
+                # A normal turn selection must not bypass linear deceleration.
+                # Brake along the checked straight path before rotating.
+                limited = Command(limited.v, 0.0)
+                braking_for_turn = True
+            else:
+                # Brake angular motion before uncalibrated straight travel.
+                limited = Command(0.0, limited.w)
         final = self.check(limited)
         d.selected, d.coverage, d.swept_clearance = selected, final.coverage, final.clearance
+        d.coverage_gap = final.coverage_gap
         if not final.usable:
             self.begin_recovery(now)
             return self.stop(d, 'limited_command_' + final.reason, now)
@@ -615,8 +636,9 @@ class MotionController:
         self.last_publication = now
         d.command = limited
         d.state = 'recovering' if self.recovery_started is not None else 'cruise'
-        d.reason = (
-            'curve' if limited.v and limited.w else 'straight' if limited.v else 'stationary_turn')
+        d.reason = ('braking_before_stationary_turn' if braking_for_turn else
+                    'curve' if limited.v and limited.w else
+                    'straight' if limited.v else 'stationary_turn')
         if self.recovery_started is not None and not constrained:
             d.reason = 'route_confirming_motion_checked'
         d.passing_side = self.side

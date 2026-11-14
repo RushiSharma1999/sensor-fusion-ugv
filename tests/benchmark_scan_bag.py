@@ -1,6 +1,7 @@
 """
 Compare cached/uncached core decisions on an actual ROS bag without hardware.
 
+Use --compare-visibility to compare scalar/batched visibility with both cached.
 Accepts rosbag2 SQLite with little-endian CDR LaserScan and Twist topics.
 Times are local CPU measurements; acquisition/tick times come from the bag.
 The ROS adapter's wall-clock deadline is not executed. No motors are driven.
@@ -13,9 +14,11 @@ import sqlite3
 import struct
 import time
 from types import SimpleNamespace as NS
+from unittest.mock import patch
 
 import numpy as np
 from vfh_pkg.motion_core import MotionController
+from vfh_pkg.motion_geometry import wedge_radius
 
 
 class Reader:
@@ -86,6 +89,7 @@ def replay(events, cached):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('bag', type=Path)
+    parser.add_argument('--compare-visibility', action='store_true')
     args = parser.parse_args()
     with sqlite3.connect(args.bag.resolve().as_uri() + '?mode=ro', uri=True) as database:
         topics = {row[0]: row[1:] for row in database.execute('select id,name,type from topics')}
@@ -103,11 +107,19 @@ def main():
     if not any(row[1] == '/scan' for row in events) or not any(
             row[1] == '/diagnostic/cmd_vel_vfh' for row in events):
         raise ValueError('Both /scan and /diagnostic/cmd_vel_vfh are required')
-    before, original = replay(events, False)
+    if args.compare_visibility:
+        def scalar(poly, starts, widths):
+            return [wedge_radius(poly, a, w) for a, w in zip(starts, widths)]
+        with patch('vfh_pkg.motion_geometry.wedge_radii', side_effect=scalar):
+            before, original = replay(events, True)
+    else:
+        before, original = replay(events, False)
     after, optimized = replay(events, True)
     if original != optimized:
-        raise AssertionError('Cached and uncached core decisions differ')
-    print(json.dumps({'uncached': before, 'cached': after,
+        raise AssertionError('Reference and optimized core decisions differ')
+    labels = ('scalar_visibility', 'batched_visibility') if args.compare_visibility else (
+        'uncached', 'cached')
+    print(json.dumps({labels[0]: before, labels[1]: after,
                       'identical_decisions': len(original),
                       'core_only_no_adapter_deadline': True}, indent=2))
 

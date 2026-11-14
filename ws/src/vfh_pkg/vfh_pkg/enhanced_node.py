@@ -110,7 +110,10 @@ class EnhancedAvoidance:
         self.cmd_pub.publish(msg)
         self.core.last_publication = published_at
         key = (decision.state, decision.reason, decision.passing_side)
-        if now - self.last_log >= (0.2 if key != self.log_key else 0.5):
+        new_safety_stop = (key != self.log_key and decision.state in ('stopped', 'latched')
+                           and decision.reason not in
+                           ('waiting_for_scan', 'confirming_usable_perception'))
+        if new_safety_stop or now - self.last_log >= (0.2 if key != self.log_key else 0.5):
             def clean(value):
                 if isinstance(value, float) and not math.isfinite(value):
                     return None
@@ -127,6 +130,7 @@ class EnhancedAvoidance:
                 scan_to_geometry_yaw_rad=(self.core.scan.mount.yaw
                                           if self.core.scan is not None else None),
                 coverage_max_gap_deg=self.cfg.coverage_max_gap_deg,
+                coverage_gap_frame=self.cfg.scan_frame,
                 compute_elapsed_sec=compute_elapsed,
                 compute_budget_sec=self.cfg.control_compute_budget_sec,
                 swept_geometry_cache=self.core._swept_geometry.cache_info()._asdict(),
@@ -134,6 +138,8 @@ class EnhancedAvoidance:
                 self.core.last_arrival,
                 accepted_age_sec=None if self.core.last_accepted is None else now -
                 self.core.last_accepted,
+                source_age_on_arrival_sec=(None if self.core.scan is None
+                                           else self.core.scan.source_age),
                 requested_units='m/s,rad/s; physical calibration required')
             self.node.get_logger().info(json.dumps(record, sort_keys=True, allow_nan=False))
             self.last_log, self.log_key = now, key

@@ -5,6 +5,7 @@ Run after sourcing ROS and this workspace. No LiDAR driver, device, or motor is
 accessed. These checks validate the adapter and bridge middleware, not a ride.
 """
 
+import json
 import math
 from pathlib import Path
 import sys
@@ -190,6 +191,29 @@ class RosIntegrationTests(unittest.TestCase):
                              if line.startswith('CMD ')))
         bridge.ser.ack_on_stop = True
         bridge.close()
+
+    def test_new_coverage_stop_logs_gap_without_waiting_for_log_throttle(self):
+        node = self.controller()
+        self.spin(1.2, lambda: self.pub.publish(self.scan()))
+        self.assertGreater(node.enhanced.core.previous.v, 0)
+        msg = self.scan()
+        ranges = list(msg.ranges)
+        ranges[250:280] = [math.inf] * 30
+        msg.ranges = ranges
+        node.enhanced.on_scan(msg)
+        node.enhanced.last_log = time.monotonic()
+        node.enhanced.log_key = ('cruise', 'straight', 0)
+        with patch.object(node, 'get_logger') as logger:
+            node.enhanced.tick()
+            node.enhanced.tick()
+            logger.return_value.info.assert_called_once()
+            record = json.loads(logger.return_value.info.call_args[0][0])
+        self.assertEqual(record['reason'], 'coverage_unknown')
+        self.assertEqual(record['command'], {'v': 0, 'w': 0})
+        self.assertEqual(record['coverage_gap']['cause'], 'angular_gap')
+        self.assertEqual(record['coverage_gap_frame'], 'unilidar_lidar')
+        self.assertAlmostEqual(record['coverage_gap']['width_deg'], 31, places=4)
+        self.assertLess(record['finite_beams'], 360)
 
     def test_preserved_baseline_still_publishes_and_has_profile_limits(self):
         node = self.controller('baseline')

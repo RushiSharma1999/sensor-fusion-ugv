@@ -189,12 +189,50 @@ def wedge_radius(poly, start, width):
     return max(distances, default=0.0)
 
 
+def wedge_radii(poly, starts, widths):
+    """Batch the same vertex/ray intersections as wedge_radius, with bounded memory."""
+    a = np.asarray(poly, dtype=float)
+    edges = np.roll(a, -1, axis=0) - a
+    vertex_angles = np.asarray([math.atan2(y, x) for x, y in poly])
+    vertex_radii = np.asarray([math.hypot(x, y) for x, y in poly])
+    numerator = a[:, 0] * edges[:, 1] - a[:, 1] * edges[:, 0]
+    result = []
+    for offset in range(0, len(starts), 256):
+        begin = np.asarray(starts[offset:offset + 256])
+        span = np.asarray(widths[offset:offset + 256])
+        inside = (vertex_angles[None, :] - begin[:, None]) % TAU <= span[:, None] + 1e-9
+        extent = np.max(np.where(inside, vertex_radii, 0.0), axis=1)
+        for angles in (begin, begin + span):
+            ux = np.asarray([math.cos(v) for v in angles])[:, None]
+            uy = np.asarray([math.sin(v) for v in angles])[:, None]
+            det = ux * edges[:, 1] - uy * edges[:, 0]
+            det = np.where(np.abs(det) < 1e-12, np.nan, det)
+            radius = numerator / det
+            fraction = (a[:, 0] * uy - a[:, 1] * ux) / det
+            valid = (radius >= 0) & (fraction >= -1e-9) & (fraction <= 1 + 1e-9)
+            extent = np.maximum(extent, np.max(np.where(valid, radius, 0.0), axis=1))
+        result.extend(float(v) for v in extent)
+    return result
+
+
+@dataclass(frozen=True)
+class CoverageGap:
+    """A failed visibility wedge, measured in raw LiDAR axes from start CCW."""
+
+    start_deg: float
+    width_deg: float
+    required_radius_m: float
+    supported_radius_m: float
+    cause: str
+
+
 @dataclass(frozen=True)
 class MotionCheck:
     usable: bool
     clearance: float
     coverage: float
     reason: str
+    coverage_gap: CoverageGap = None
 
 
 def check_polygon(scan, swept, max_gap):
@@ -221,18 +259,25 @@ def check_polygon(scan, swept, max_gap):
             min(r for _, r in beams) * math.cos(max(gaps) / 2) > max_radius):
         return MotionCheck(True, clearance, 1.0, 'clear')
     covered = required = 0.0
-    for (a, r), (b, q) in zip(beams, beams[1:] + beams[:1]):
-        gap = (b - a) % TAU
+    failed = None
+    extents = wedge_radii(sensor_poly, [a for a, _ in beams], gaps)
+    for i, ((a, r), extent, gap) in enumerate(zip(beams, extents, gaps)):
         if gap < 1e-10:
             continue
-        extent = wedge_radius(sensor_poly, a, gap)
         if extent > 1e-8:
             required += gap
-            if gap <= max_gap + 1e-9 and extent < min(r, q) * math.cos(gap / 2):
+            q = beams[(i + 1) % len(beams)][1]
+            support = min(r, q) * math.cos(gap / 2)
+            if gap <= max_gap + 1e-9 and extent < support:
                 covered += gap
+            elif failed is None or gap > math.radians(failed.width_deg):
+                failed = CoverageGap(
+                    math.degrees(math.atan2(math.sin(a), math.cos(a))), math.degrees(gap),
+                    extent, max(0.0, support),
+                    'angular_gap' if gap > max_gap + 1e-9 else 'insufficient_range_support')
     fraction = covered / required if required > 0 else 0.0
     return MotionCheck(fraction >= 1 - 1e-8, clearance, fraction,
-                       'clear' if fraction >= 1 - 1e-8 else 'coverage_unknown')
+                       'clear' if fraction >= 1 - 1e-8 else 'coverage_unknown', failed)
 
 
 def make_footprint(mode, vertices, radius, margin):

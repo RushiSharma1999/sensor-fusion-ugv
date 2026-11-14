@@ -5,12 +5,14 @@ import math
 import random
 from types import SimpleNamespace as NS
 import unittest
+from unittest.mock import patch
 
 from esp_bridge.speed_profiles import speed_limits
 from vfh_pkg.motion_core import (Command, Config, Confirmation, limit_axis, MotionController,
                                  parse_scan)
 from vfh_pkg.motion_geometry import (check_polygon, make_footprint, minimum_clearance, Mount,
-                                     path_clearance, pose, signed_clearance, swept_polygon)
+                                     path_clearance, pose, signed_clearance, swept_polygon,
+                                     wedge_radii, wedge_radius)
 
 
 def scan(t=100.0, distance=4.0, count=361):
@@ -106,6 +108,58 @@ class GeometryTests(unittest.TestCase):
             points = [(rng.uniform(-1, 1), rng.uniform(-1, 1)) for _ in range(5)]
             self.assertAlmostEqual(minimum_clearance(points, shape),
                                    min(signed_clearance(p, shape) for p in points))
+
+    def test_batched_wedges_match_scalar_across_wrap_edges_and_chunks(self):
+        rng = random.Random(8401)
+        for mount in (Mount(), Mount(.4, -.2, .7), Mount(-.7, .3, -2.8)):
+            poly = tuple(mount.apply(p) for p in ((-.3, -.2), (.3, -.2), (.3, .2), (-.3, .2)))
+            starts = [0, math.pi / 2, -math.pi, 2 * math.pi - .01]
+            widths = [0, math.pi, 2 * math.pi, .02]
+            starts += [rng.uniform(-2 * math.pi, 2 * math.pi) for _ in range(513)]
+            widths += [rng.uniform(0, 2 * math.pi) for _ in range(513)]
+            actual = wedge_radii(poly, starts, widths)
+            self.assertEqual(len(actual), len(starts))
+            for value, a, width in zip(actual, starts, widths):
+                self.assertAlmostEqual(value, wedge_radius(poly, a, width), places=12)
+
+    def test_batched_visibility_matches_scalar_for_offset_motion_and_sparse_scans(self):
+        # Finite endpoint returns can lie outside a rectangle yet fail to
+        # establish range support at its corner between adjacent beams.
+        poly = ((-.2, -.1), (.2, -.1), (.2, .1), (-.2, .1))
+        msg = scan(count=37)
+        msg.range_min = .01
+        msg.ranges = [wedge_radius(poly, msg.angle_min + i * msg.angle_increment, 0) + .001
+                      for i in range(37)]
+        data = parse_scan(msg, 100, 100_000_000_000, 1, Config())
+        unknown = check_polygon(data, poly, math.radians(10))
+        self.assertGreater(unknown.clearance, 0)
+        self.assertFalse(unknown.usable)
+        self.assertEqual(unknown.coverage_gap.cause, 'insufficient_range_support')
+        self.assertGreater(unknown.coverage_gap.required_radius_m,
+                           unknown.coverage_gap.supported_radius_m)
+        rng = random.Random(620)
+        for config in (Config(), polygon_config(lidar_x=.1, lidar_y=-.02, lidar_yaw=.3)):
+            core = MotionController(config)
+            for t in range(100, 110):
+                msg = scan(t)
+                msg.ranges = [rng.uniform(.38, 3) if rng.random() > .25 else math.inf
+                              for _ in msg.ranges]
+                core.observe(msg, t, t * 1_000_000_000)
+                for command in (Command(), Command(.05, 0), Command(.025, .12),
+                                Command(.025, -.12), Command(0, -.25)):
+                    actual = core.check(command)
+                    with patch('vfh_pkg.motion_geometry.wedge_radii',
+                               side_effect=lambda poly, starts, widths: [
+                                   wedge_radius(poly, a, w) for a, w in zip(starts, widths)]):
+                        scalar = core.check(command)
+                    self.assertEqual(actual.usable, scalar.usable)
+                    self.assertEqual(actual.reason, scalar.reason)
+                    self.assertEqual(actual.coverage, scalar.coverage)
+                    self.assertEqual(actual.clearance, scalar.clearance)
+                    if actual.coverage_gap is not None:
+                        self.assertEqual(actual.coverage_gap.cause, scalar.coverage_gap.cause)
+                        self.assertAlmostEqual(actual.coverage_gap.required_radius_m,
+                                               scalar.coverage_gap.required_radius_m, places=12)
 
     def test_projection_regression_and_real_hazard(self):
         cfg = Config()
@@ -311,6 +365,26 @@ def stamp_at(msg, t):
 
 
 class DecisionTests(unittest.TestCase):
+    def test_missing_wedge_reports_raw_sector_and_still_stops_immediately(self):
+        core = MotionController(Config(align_legacy_heading=True,
+                                       lidar_yaw=math.radians(-165)))
+        release(core)
+        msg = scan(101)
+        msg.ranges[90:111] = [math.inf] * 21
+        result = feed(core, 101, msg)
+        self.assertEqual(result.command, Command())
+        self.assertEqual(result.reason, 'coverage_unknown')
+        self.assertEqual(result.finite_beams, 339)
+        self.assertAlmostEqual(result.max_finite_gap_deg, 22, places=6)
+        gap = result.coverage_gap
+        self.assertEqual(gap.cause, 'angular_gap')
+        self.assertAlmostEqual(gap.start_deg, -91, places=6)
+        self.assertAlmostEqual(gap.width_deg, 22, places=6)
+        self.assertGreater(gap.required_radius_m, .36)
+        self.assertGreater(gap.supported_radius_m, gap.required_radius_m)
+        # Plenty of range at the bounding rays cannot verify the missing wedge.
+        self.assertLess(result.coverage, 1)
+
     def test_aligned_front_obstacle_selects_checked_stationary_turn(self):
         core = MotionController(Config(align_legacy_heading=True,
                                        lidar_yaw=math.radians(-165)))
@@ -414,6 +488,47 @@ class DecisionTests(unittest.TestCase):
         self.assertEqual(core.previous, Command())
         self.assertAlmostEqual(limit_axis(.05, 0, .04, .08, .15), .044)
         self.assertAlmostEqual(limit_axis(.2, -.25, .04, .5, .75), .17)
+
+    def test_normal_straight_to_turn_brakes_translation_before_rotating(self):
+        core = MotionController()
+        release(core)
+        core.previous = Command(.05, 0.0)
+        core.last_tick = 100.96
+        previous = core.previous
+        braking = False
+        for i in range(12):
+            now = 101 + i * .04
+            core.observe(scan(now), now, round(now * 1e9))
+            turn = Command(0, .25)
+            core.cached_sequence = core.scan.sequence
+            core.cached_candidates = [(turn, core.check(turn))]
+            result = core.tick(now, round(now * 1e9))
+            self.assertLessEqual(previous.v - result.command.v, .15 * .04 + 1e-9)
+            self.assertLessEqual(abs(result.command.w - previous.w), .5 * .04 + 1e-9)
+            self.assertTrue(core.check(result.command).usable)
+            self.assertFalse(result.command.v > 0 and result.command.w != 0)
+            if result.command.v > 0:
+                self.assertEqual(result.reason, 'braking_before_stationary_turn')
+                braking = True
+            previous = result.command
+        self.assertTrue(braking)
+        self.assertEqual(result.command.v, 0)
+        self.assertGreater(result.command.w, 0)
+
+    def test_unsafe_translation_during_turn_braking_stops_immediately(self):
+        core = MotionController(Config(horizon_sec=10))
+        release(core)
+        core.previous = Command(.05, 0.0)
+        core.last_tick = 100.96
+        core.observe(obstacle(scan(101), .8, 0, 3), 101, 101_000_000_000)
+        turn = Command(0, .25)
+        self.assertTrue(core.check(turn).usable)
+        self.assertFalse(core.check(Command(.044, 0)).usable)
+        core.cached_sequence = core.scan.sequence
+        core.cached_candidates = [(turn, core.check(turn))]
+        result = core.tick(101, 101_000_000_000)
+        self.assertEqual(result.command, Command())
+        self.assertEqual(result.reason, 'limited_command_swept_footprint_collision')
 
     def test_final_smoothed_motion_is_collision_checked(self):
         core = MotionController(polygon_config(enable_curves=True, motion_model_calibrated=True))

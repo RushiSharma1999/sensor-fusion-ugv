@@ -7,7 +7,10 @@ The subsequent [heading alignment follow-up](heading_alignment.md) adds seven
 core tests and one ROS test (57 functional checks total). The later
 [turn-to-forward and polarity follow-up](heading_alignment.md#turn-to-forward-crash-and-angular-polarity-follow-up)
 adds one complete ROS transition/serial-mapping test and three serial checks
-(61 functional checks total).
+(61 functional checks total). The [room-run follow-up](room_run_findings.md)
+adds five core regressions and one ROS check (67 functional checks total),
+normal linear braking before turns, batched visibility intersections and more
+specific coverage-stop diagnostics.
 
 Implementation base: main `ec5e89f1474392d5fa1074ceeafa30492372b955`.
 The initial checkout was clean, and no applicable AGENTS.md was present.

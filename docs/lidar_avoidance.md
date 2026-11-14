@@ -127,7 +127,12 @@ the gap threshold or add a chassis mask to conceal missing evidence.
 
 The final limited, wire-resolution command is collision/coverage checked again,
 with reachability padding, after smoothing. With curves disabled, residual
-angular motion is brought to zero before starting straight travel. Immediate
+angular motion is brought to zero before starting straight travel. A normal
+straight-to-turn selection first decelerates translation with zero angular
+request, then starts turning. Each braking command is independently checked;
+unsafe braking paths stop immediately. `braking_before_stationary_turn` identifies
+this normal transition. Front-stop thresholds and genuine safety stops retain
+priority over rate limiting. Immediate
 footprint hazards, invalid perception and freshness failures bypass smoothing.
 The 0.65 m front threshold forbids translation; separately verified stationary
 turns remain available outside the footprint envelope. Higher speed needs at
@@ -274,7 +279,17 @@ selected and final `command` v/w, swept clearance, passing side, recovery age,
 state and reason. Swept clearance saturates at 1 m for scoring; current footprint
 clearance does not. JSON null means unknown/not evaluated or an unbounded path,
 never verified free space. Records are limited to 2 Hz for unchanged states and
-5 Hz for transitions. Bridge TX logs show input, planned and exact wire values.
+5 Hz for ordinary transitions. A newly reported safety-stop reason is logged
+immediately, even inside that throttle window; repeated stops remain throttled.
+`finite_beams` counts valid distinct raw rays. `max_finite_gap_deg` describes the
+largest raw angular hole. For a failed checked sweep, `coverage_gap` identifies
+one widest failed required wedge: raw LiDAR `start_deg`, CCW `width_deg`, required
+and finite-supported radii in metres, and cause (`angular_gap` or
+`insufficient_range_support`). `coverage_gap_frame` gives its frame; apply neither
+the heading correction nor chassis offsets again to interpret those raw angles.
+The largest raw hole alone does not establish whether a particular footprint
+needs that sector. Null gap means no wedge diagnostic was evaluated, not clear
+space. Bridge TX logs show input, planned and exact wire values.
 
 1. **Motors physically off:** build, run offline/ROS checks, then baseline and
    enhanced dry-runs with live LiDAR. Verify source paths from the preflight,
@@ -334,3 +349,6 @@ environment limits are recorded in [validation.md](validation.md).
 See the [recorded-scan computation follow-up](scan_series_findings.md) for the
 Jetson command-interruption investigation, bounded geometry cache, retained
 hazard-point diagnostics and exact update/retest commands.
+
+See [the room-run follow-up](room_run_findings.md) for the observed brief stops,
+checked turn braking, batched visibility checks and exact capture/retest commands.
