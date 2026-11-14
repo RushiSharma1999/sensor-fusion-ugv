@@ -14,7 +14,11 @@ specific coverage-stop diagnostics. The subsequent
 [stability and curve-commissioning follow-up](perception_stability_and_curves.md)
 adds five core, five fake-serial motor-probe and two actual ROS tests (79
 functional checks total). Physical curve testing remains pending measurements;
-no motors were operated by the agent.
+no motors were operated by the agent. The later
+[raised-wheel/test-timing follow-up](wheel_test_followup.md) records the user's
+completed serial/PWM/STOP test and a Humble ROS assertion failure. It changes
+only tests/docs, adds one compute-overrun ROS regression (80 functional checks
+total), and reports all 12 ROS middleware tests passing locally in Jazzy.
 
 Implementation base: main `ec5e89f1474392d5fa1074ceeafa30492372b955`.
 The initial checkout was clean, and no applicable AGENTS.md was present.

@@ -45,14 +45,17 @@ class RosIntegrationTests(unittest.TestCase):
         self.executor.shutdown()
         rclpy.shutdown()
 
-    def spin(self, seconds, action=None):
+    def spin(self, seconds, action=None, until=None):
         deadline = time.monotonic() + seconds
         next_action = 0
         while time.monotonic() < deadline:
+            if until is not None and until():
+                return True
             if action and time.monotonic() >= next_action:
                 action()
                 next_action = time.monotonic() + .12
             self.executor.spin_once(timeout_sec=.005)
+        return until is not None and until()
 
     def controller(self, behavior='enhanced', extra=(), cli_args=None):
         params = [
@@ -163,7 +166,8 @@ class RosIntegrationTests(unittest.TestCase):
         self.assertEqual(bridge.angular_command_sign, -1)
         self.assertEqual(bridge.ser.written, ['STOP\n'])
         bridge.ser.incoming = b'ACK STOP\n'
-        self.spin(.1)
+        self.assertTrue(self.spin(2.0, until=lambda: bridge.stop_acknowledged),
+                        'Fake transport did not complete the startup STOP handshake')
 
         def blocked():
             msg = self.scan()
@@ -171,7 +175,16 @@ class RosIntegrationTests(unittest.TestCase):
                 msg.ranges[i] = .6
             self.pub.publish(msg)
 
-        self.spin(1.2, blocked)
+        def full_turn_on_wire():
+            return (node.enhanced.core.previous.w >= .249
+                    and bridge.ser.written[-1] == 'CMD v 0.000 w -0.250\n')
+
+        # A real compute-budget stop can require 0.75 s of fresh evidence,
+        # followed by the angular ramp. Wait for behavior, not a 1.2 s guess.
+        self.assertTrue(self.spin(6.0, blocked, until=full_turn_on_wire),
+                        f'Turn not observed: output={node.enhanced.core.previous}, '
+                        f'perception_unstable={node.enhanced.core.perception_unstable}, '
+                        f'fault={node.enhanced.core.input_fault}')
         self.assertTrue(any(m.linear.x == 0 and m.angular.z > 0 for _, m in self.received))
         turning = node.enhanced.core.previous.w
         self.assertGreater(turning, 0)
@@ -179,7 +192,19 @@ class RosIntegrationTests(unittest.TestCase):
         self.received.clear()
         # Synthetic route opening, not measured robot rotation. Residual angular
         # output must brake with integer zero in the core's translation command.
-        self.spin(1.6, lambda: self.pub.publish(self.scan()))
+
+        def forward_on_wire():
+            line = bridge.ser.written[-1]
+            return (line.startswith('CMD ') and float(line.split()[2]) > 0
+                    and float(line.split()[4]) == 0
+                    and node.enhanced.core.previous.v > 0
+                    and node.enhanced.core.previous.w == 0
+                    and bool(self.received) and self.received[-1][1].linear.x > 0)
+
+        self.assertTrue(
+            self.spin(6.0, lambda: self.pub.publish(self.scan()), until=forward_on_wire),
+            f'Forward resumption not observed: output={node.enhanced.core.previous}, '
+            f'fault={node.enhanced.core.input_fault}')
         self.assertTrue(any(m.linear.x == 0 and 0 < m.angular.z < turning
                             for _, m in self.received))
         self.assertTrue(any(m.linear.x > 0 and m.angular.z == 0 for _, m in self.received))
@@ -191,6 +216,28 @@ class RosIntegrationTests(unittest.TestCase):
                              if line.startswith('CMD ')))
         bridge.ser.ack_on_stop = True
         bridge.close()
+
+    def test_compute_overrun_with_fresh_scan_stops_and_requires_stable_release(self):
+        node = self.controller()
+        core = node.enhanced.core
+        self.assertTrue(self.spin(
+            6.0, lambda: self.pub.publish(self.scan()), until=lambda: core.previous.v > 0))
+        started = time.monotonic()
+        with patch('vfh_pkg.enhanced_node.time') as clock, \
+                patch.object(node, 'get_logger') as logger:
+            clock.monotonic.side_effect = [started, started + .06]
+            node.enhanced.tick()
+        record = json.loads(logger.return_value.info.call_args[0][0])
+        self.assertEqual(record['reason'], 'control_compute_budget_exceeded')
+        self.assertLess(record['scan_age'], core.cfg.scan_timeout_sec)
+        self.assertEqual(core.cfg.control_compute_budget_sec, .04)
+        self.assertEqual((core.previous.v, core.previous.w), (0, 0))
+        self.assertTrue(core.perception_unstable)
+        self.received.clear()
+        self.spin(.2, lambda: self.pub.publish(self.scan()))
+        self.assertEqual((core.previous.v, core.previous.w), (0, 0))
+        self.assertTrue(self.spin(
+            6.0, lambda: self.pub.publish(self.scan()), until=lambda: core.previous.v > 0))
 
     def test_new_coverage_stop_logs_gap_without_waiting_for_log_throttle(self):
         node = self.controller()

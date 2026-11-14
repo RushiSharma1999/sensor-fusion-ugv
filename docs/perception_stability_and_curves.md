@@ -193,3 +193,7 @@ To roll back just this update, stop the stack, preserve local edits, select
 `git switch --detach a45f5f58d94dc4f7d72af6d6f274be7b07535184` and rebuild the same
 two packages. That retains the previous heading/sign/normal-braking fixes.
 Switch back to `improve/lidar-swept-motion` and rebuild to restore this update.
+
+The later [raised-wheel and Humble test follow-up](wheel_test_followup.md) records
+the actual bounded motor-test result and fixes a too-short ROS transition-test
+phase without changing runtime safety timeouts.
