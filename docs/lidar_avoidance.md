@@ -162,6 +162,17 @@ chatter between movement and stops. Translation has its own 0.10 m front-release
 margin. Maneuver completion can confirm a clear route while an independently
 checked motion continues; there is no mandatory completion brake.
 
+After coverage, invalid-input or freshness faults, an additional perception
+stability gate requires 0.75 s of continuously usable observations and five
+distinct scans. It runs concurrently with ordinary confirmation. Repeated
+short good-data bursts therefore do not repeatedly restart the motors.
+`perception_stability_confirming`, `perception_confirm_count` and
+`perception_confirm_elapsed_sec` explain this stopped state. New hazards and
+freshness failures still stop immediately. The absolute recovery deadline is
+unchanged: persistent bad coverage can end in a latched stop, rather than motion
+through an unknown sector. This gate does not add a pause to routine obstacle
+release when perception stayed usable.
+
 The passing side survives data interruptions. Reassessment requires either a
 continuously blocked committed side for 1 s or 3 s without material observable
 clearance improvement, an independently usable opposite candidate scoring at
@@ -352,3 +363,7 @@ hazard-point diagnostics and exact update/retest commands.
 
 See [the room-run follow-up](room_run_findings.md) for the observed brief stops,
 checked turn braking, batched visibility checks and exact capture/retest commands.
+
+See [perception stability and curved-drive commissioning](perception_stability_and_curves.md)
+for the later repeated-gap findings, bounded wheels-raised motor test and physical
+measurement instructions. Autonomous curves still require measured calibration.

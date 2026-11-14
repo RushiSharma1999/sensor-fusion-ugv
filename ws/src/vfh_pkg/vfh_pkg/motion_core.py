@@ -32,6 +32,8 @@ class Config:
     lidar_yaw: float = 0.0
     transform_timeout_sec: float = 0.10
     enable_curves: bool = False
+    curve_linear_speed_cap: float = 0.05
+    curve_max_yaw_rate: float = 0.20
     motion_model_calibrated: bool = False
     linear_model_scale: float = 1.0
     angular_model_scale: float = 1.0
@@ -50,6 +52,8 @@ class Config:
     front_release_margin: float = 0.10
     confirm_sec: float = 0.20
     confirm_scans: int = 2
+    perception_release_sec: float = 0.75
+    perception_release_scans: int = 5
     linear_accel: float = 0.08
     linear_decel: float = 0.15
     angular_accel: float = 0.50
@@ -88,6 +92,9 @@ class Config:
             'angular_accel',
             'angular_decel',
             'confirm_sec',
+            'perception_release_sec',
+            'curve_linear_speed_cap',
+            'curve_max_yaw_rate',
             'recovery_budget_sec',
             'recovery_clear_sec',
             'side_blocked_sec',
@@ -104,10 +111,13 @@ class Config:
                 or self.sweep_step_sec > self.horizon_sec
                 or not 0 < self.front_stop_dist < self.hard_turn_dist < self.front_slowdown_dist
                 or self.high_speed_clearance < self.front_slowdown_dist
+                or self.curve_linear_speed_cap > speed_limits('conservative').linear
+                or not .06 <= self.curve_max_yaw_rate <= speed_limits(self.speed_profile).angular
                 or any(getattr(self, n) < 0 for n in nonnegative)
                 or type(self.max_side_switches) is not int
                 or any(type(getattr(self, n)) is not int or getattr(self, n) < 1
-                       for n in ('min_front_returns', 'confirm_scans', 'recovery_clear_scans'))):
+                       for n in ('min_front_returns', 'confirm_scans', 'recovery_clear_scans',
+                                 'perception_release_scans'))):
             raise ValueError('Invalid enhanced controller configuration')
         if self.transform_mode not in ('configured', 'tf'):
             raise ValueError('transform_mode must be configured or tf')
@@ -277,6 +287,8 @@ class Decision:
     observation: int = 0
     observation_status: str = 'none'
     confirm_count: int = 0
+    perception_confirm_count: int = 0
+    perception_confirm_elapsed_sec: float = 0.0
     last_hazard: dict = field(default_factory=dict)
 
 
@@ -317,6 +329,8 @@ class MotionController:
         self.gate = Confirmation()
         self.linear_release = Confirmation()
         self.route_clear = Confirmation()
+        self.perception_release = Confirmation()
+        self.perception_unstable = False
         self.motion_released = False
         self.linear_latched = True
         self.side = 0
@@ -343,6 +357,9 @@ class MotionController:
         self.last_hazard = {}
 
     def invalidate(self, reason):
+        if reason not in ('observed_hazard_inside_footprint_envelope',
+                          'swept_footprint_collision'):
+            self.require_stable_perception()
         self.input_fault = reason
         self.motion_released = False
         self.linear_latched = True
@@ -350,6 +367,10 @@ class MotionController:
         self.linear_release.reset()
         self.route_clear.reset()
         self.previous = Command()
+
+    def require_stable_perception(self):
+        self.perception_unstable = True
+        self.perception_release.reset()
 
     def observe(self, msg, now, ros_now_ns, mount=None):
         self.last_arrival = now
@@ -397,6 +418,8 @@ class MotionController:
             self.progress_highwater = 0.0
 
     def stop(self, decision, reason, now):
+        if reason in ('control_compute_budget_exceeded', 'limited_command_coverage_unknown'):
+            self.require_stable_perception()
         self.previous = Command()
         decision.command = Command()
         decision.reason = reason
@@ -404,6 +427,10 @@ class MotionController:
         decision.passing_side = self.side
         decision.recovery_age = 0 if self.recovery_started is None else now - self.recovery_started
         decision.confirm_count = self.gate.count
+        decision.perception_confirm_count = self.perception_release.count
+        if self.scan is not None and self.perception_release.since is not None:
+            decision.perception_confirm_elapsed_sec = (
+                self.scan.received - self.perception_release.since)
         decision.last_hazard = dict(self.last_hazard)
         self.last_publication = now
         return decision
@@ -426,7 +453,9 @@ class MotionController:
             motions.append(Command(v, 0.0))
             if cfg.enable_curves:
                 for w in (0.06, -0.06, 0.12, -0.12, 0.20, -0.20):
-                    turn_v = min(self.conservative_speed, v) / \
+                    if abs(w) > cfg.curve_max_yaw_rate:
+                        continue
+                    turn_v = min(cfg.curve_linear_speed_cap, v) / \
                         (1 + 2 * abs(w) / self.limits.angular)
                     motions.append(Command(turn_v, w))
         motions.extend((Command(0, self.limits.angular), Command(0, -self.limits.angular),
@@ -537,8 +566,16 @@ class MotionController:
         if not self.motion_released:
             self.motion_released = self.gate.update(scan, current >= cfg.release_margin,
                                                     cfg.confirm_sec, cfg.confirm_scans)
-            if not self.motion_released:
-                return self.stop(d, 'confirming_usable_perception', now)
+        if self.perception_unstable:
+            stable = self.perception_release.update(
+                scan, current >= cfg.release_margin,
+                cfg.perception_release_sec, cfg.perception_release_scans)
+            d.perception_confirm_count = self.perception_release.count
+            if not stable:
+                return self.stop(d, 'perception_stability_confirming', now)
+            self.perception_unstable = False
+        if not self.motion_released:
+            return self.stop(d, 'confirming_usable_perception', now)
         if scan.sequence != self.cached_sequence:
             self.cached_candidates = self.candidates(path, current)
             self.cached_sequence = scan.sequence
@@ -616,6 +653,20 @@ class MotionController:
         if (limited.w or front < cfg.high_speed_clearance
                 or current < cfg.high_speed_footprint_clearance):
             limited = Command(min(self.conservative_speed, limited.v), limited.w)
+        preparing_curve = False
+        if cfg.enable_curves and limited.v > 0 and limited.w:
+            if abs(limited.w) > cfg.curve_max_yaw_rate:
+                if self.previous.v > 0 and abs(self.previous.w) <= cfg.curve_max_yaw_rate:
+                    limited = Command(limited.v, math.copysign(cfg.curve_max_yaw_rate, limited.w))
+                else:
+                    limited = Command(0.0, limited.w)
+                preparing_curve = True
+            elif limited.v > cfg.curve_linear_speed_cap:
+                if self.previous.w == 0:
+                    limited = Command(limited.v, 0.0)
+                    preparing_curve = True
+                else:
+                    limited = Command(cfg.curve_linear_speed_cap, limited.w)
         braking_for_turn = False
         if not cfg.enable_curves and limited.v > 0 and limited.w != 0:
             if self.previous.v > 0 and self.previous.w == 0:
@@ -636,7 +687,8 @@ class MotionController:
         self.last_publication = now
         d.command = limited
         d.state = 'recovering' if self.recovery_started is not None else 'cruise'
-        d.reason = ('braking_before_stationary_turn' if braking_for_turn else
+        d.reason = ('braking_for_curve_limits' if preparing_curve else
+                    'braking_before_stationary_turn' if braking_for_turn else
                     'curve' if limited.v and limited.w else
                     'straight' if limited.v else 'stationary_turn')
         if self.recovery_started is not None and not constrained:

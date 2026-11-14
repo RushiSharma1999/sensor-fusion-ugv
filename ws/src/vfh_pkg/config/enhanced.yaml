@@ -7,6 +7,8 @@ vfh_obstacle_avoidance:
     robot_radius: 0.20
     safety_margin: 0.16
     enable_curves: false
+    curve_linear_speed_cap: 0.05
+    curve_max_yaw_rate: 0.20
     # To enable curves AFTER measurement, select geometry_mode: polygon,
     # provide strictly convex CCW vertices in base_frame (JSON string, metres),
     # and set mounting_calibrated and motion_model_calibrated true only after
@@ -32,4 +34,6 @@ vfh_obstacle_avoidance:
     front_slowdown_dist: 1.2
     confirm_sec: 0.20
     confirm_scans: 2
+    perception_release_sec: 0.75
+    perception_release_scans: 5
     recovery_budget_sec: 20.0

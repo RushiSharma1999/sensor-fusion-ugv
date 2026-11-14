@@ -489,6 +489,108 @@ class DecisionTests(unittest.TestCase):
         self.assertAlmostEqual(limit_axis(.05, 0, .04, .08, .15), .044)
         self.assertAlmostEqual(limit_axis(.2, -.25, .04, .5, .75), .17)
 
+    def test_intermittent_distant_coverage_loss_does_not_produce_restart_pulses(self):
+        core = MotionController()
+        release(core)
+        core.side = 1
+        for i in range(24):
+            now = 101 + i * .16
+            msg = scan(now, 3)
+            if i % 4 == 0:
+                msg.ranges[90:103] = [math.inf] * 13
+            result = feed(core, now, msg)
+            self.assertEqual(result.command, Command())
+            self.assertIn(result.reason, ('coverage_unknown', 'perception_stability_confirming'))
+            self.assertEqual(core.side, 1)
+        self.assertFalse(core.latched)
+
+    def test_perception_release_needs_time_and_distinct_scans_not_ticks(self):
+        core = MotionController()
+        release(core)
+        bad = scan(101)
+        bad.ranges[90:103] = [math.inf] * 13
+        feed(core, 101, bad)
+        feed(core, 101.16)
+        for now in (101.20, 101.24, 101.32):
+            result = core.tick(now, round(now * 1e9))
+            self.assertEqual(result.command, Command())
+            self.assertEqual(result.perception_confirm_count, 1)
+        for now in (101.34, 101.42, 101.50, 101.58):
+            result = feed(core, now)
+            self.assertEqual(result.command, Command())
+        self.assertEqual(result.perception_confirm_count, 5)
+        for now in (101.66, 101.74, 101.82, 101.90):
+            self.assertEqual(feed(core, now).command, Command())
+        result = feed(core, 101.98)
+        self.assertGreater(result.command.v, 0)
+        self.assertTrue(core.check(result.command).usable)
+
+    def test_perception_stability_does_not_delay_hazards_or_extend_recovery(self):
+        core = MotionController(Config(recovery_budget_sec=2))
+        release(core)
+        started = None
+        for i in range(16):
+            now = 101 + i * .16
+            msg = scan(now)
+            if i % 4 == 0:
+                msg.ranges[90:103] = [math.inf] * 13
+            result = feed(core, now, msg)
+            started = core.recovery_started if started is None else started
+            self.assertEqual(core.recovery_started, started)
+            self.assertEqual(result.command, Command())
+        self.assertTrue(core.latched)
+        self.assertIn('restart_required', result.reason)
+        core = MotionController()
+        release(core)
+        core.tick(101.1, 101_100_000_000)
+        result = feed(core, 101.2, obstacle(scan(101.2), .25, 0))
+        self.assertEqual(result.command, Command())
+        self.assertEqual(result.reason, 'observed_hazard_inside_footprint_envelope')
+
+    def test_optional_curve_caps_reject_invalid_configuration_and_bound_candidates(self):
+        for options in ({'curve_linear_speed_cap': .08}, {'curve_max_yaw_rate': .03},
+                        {'curve_max_yaw_rate': .26}, {'perception_release_scans': 0}):
+            with self.assertRaises(ValueError):
+                Config(**options)
+        cfg = polygon_config(enable_curves=True, motion_model_calibrated=True,
+                             curve_linear_speed_cap=.02, curve_max_yaw_rate=.06)
+        core = MotionController(cfg)
+        release(core)
+        motions = core.candidates(1.5, 1)
+        curves = [c for c, checked in motions if c.v > 0 and c.w and checked.usable]
+        self.assertEqual({c.w for c in curves}, {-.06, .06})
+        self.assertTrue(all(c.v <= .02 for c in curves))
+        with self.assertRaises(ValueError):
+            Config(enable_curves=True, curve_linear_speed_cap=.02, curve_max_yaw_rate=.06)
+
+    def test_final_curved_output_obeys_optional_caps_during_transitions(self):
+        cfg = polygon_config(enable_curves=True, motion_model_calibrated=True,
+                             curve_linear_speed_cap=.02, curve_max_yaw_rate=.06)
+        for initial, target in ((Command(.05, 0), Command(.013, .06)),
+                                (Command(0, .25), Command(.013, .06)),
+                                (Command(.013, .06), Command(0, .25))):
+            core = MotionController(cfg)
+            release(core)
+            core.previous = initial
+            core.last_tick = 100.96
+            for i in range(18):
+                now = 101 + i * .04
+                core.observe(scan(now), now, round(now * 1e9))
+                core.cached_sequence = core.scan.sequence
+                core.cached_candidates = [(target, core.check(target))]
+                previous = core.previous
+                result = core.tick(now, round(now * 1e9))
+                self.assertLessEqual(previous.v - result.command.v, .15 * .04 + 1e-9)
+                if result.command.v > 0 and result.command.w:
+                    self.assertLessEqual(result.command.v, .02)
+                    self.assertLessEqual(abs(result.command.w), .06)
+                self.assertTrue(core.check(result.command).usable)
+            if target.v:
+                self.assertGreater(result.command.v, 0)
+            else:
+                self.assertEqual(result.command.v, 0)
+            self.assertGreater(result.command.w, 0)
+
     def test_normal_straight_to_turn_brakes_translation_before_rotating(self):
         core = MotionController()
         release(core)

@@ -215,6 +215,62 @@ class RosIntegrationTests(unittest.TestCase):
         self.assertAlmostEqual(record['coverage_gap']['width_deg'], 31, places=4)
         self.assertLess(record['finite_beams'], 360)
 
+    def test_intermittent_coverage_stays_stopped_until_stable_distinct_scans(self):
+        node = self.controller()
+        self.spin(1.2, lambda: self.pub.publish(self.scan()))
+        self.assertGreater(self.received[-1][1].linear.x, 0)
+        self.received.clear()
+        node.enhanced.core.side = 1
+        counter = [0]
+
+        def publish():
+            msg = self.scan()
+            if counter[0] % 4 == 0:
+                ranges = list(msg.ranges)
+                ranges[90:103] = [math.inf] * 13
+                msg.ranges = ranges
+            counter[0] += 1
+            self.pub.publish(msg)
+
+        started = time.monotonic()
+        self.spin(2.1, publish)
+        self.assertTrue(all(m.linear.x == 0 and m.angular.z == 0 for t, m in self.received
+                            if t > started + .08))
+        self.assertEqual(node.enhanced.core.side, 1)
+        self.spin(1.6, lambda: self.pub.publish(self.scan()))
+        self.assertGreater(self.received[-1][1].linear.x, 0)
+        self.spin(.5)
+        self.assertEqual(self.received[-1][1].linear.x, 0)
+        self.assertEqual(self.received[-1][1].angular.z, 0)
+
+    def test_calibrated_synthetic_curves_respect_caps_and_new_hazard_stop(self):
+        node = self.controller(extra=[
+            Parameter('geometry_mode', value='polygon'),
+            Parameter('mounting_calibrated', value=True),
+            Parameter('footprint_xy', value='[[-0.25,-0.18],[0.25,-0.18],'
+                      '[0.25,0.18],[-0.25,0.18]]'),
+            Parameter('motion_model_calibrated', value=True),
+            Parameter('enable_curves', value=True),
+            Parameter('curve_linear_speed_cap', value=.02),
+            Parameter('curve_max_yaw_rate', value=.06)])
+        self.spin(1.2, lambda: self.pub.publish(self.scan()))
+        self.received.clear()
+        node.enhanced.core.side = 1
+
+        def publish():
+            msg = self.scan()
+            for i in range(177, 184):
+                msg.ranges[i] = .95
+            self.pub.publish(msg)
+
+        self.spin(1.8, publish)
+        curves = [m for _, m in self.received if m.linear.x > 0 and m.angular.z != 0]
+        self.assertTrue(curves)
+        self.assertTrue(all(m.linear.x <= .02 and abs(m.angular.z) <= .06 for m in curves))
+        self.spin(.2, lambda: self.pub.publish(self.scan(.25)))
+        self.assertEqual(self.received[-1][1].linear.x, 0)
+        self.assertEqual(self.received[-1][1].angular.z, 0)
+
     def test_preserved_baseline_still_publishes_and_has_profile_limits(self):
         node = self.controller('baseline')
         self.spin(1.4, lambda: self.pub.publish(self.scan()))

@@ -10,7 +10,11 @@ adds one complete ROS transition/serial-mapping test and three serial checks
 (61 functional checks total). The [room-run follow-up](room_run_findings.md)
 adds five core regressions and one ROS check (67 functional checks total),
 normal linear braking before turns, batched visibility intersections and more
-specific coverage-stop diagnostics.
+specific coverage-stop diagnostics. The subsequent
+[stability and curve-commissioning follow-up](perception_stability_and_curves.md)
+adds five core, five fake-serial motor-probe and two actual ROS tests (79
+functional checks total). Physical curve testing remains pending measurements;
+no motors were operated by the agent.
 
 Implementation base: main `ec5e89f1474392d5fa1074ceeafa30492372b955`.
 The initial checkout was clean, and no applicable AGENTS.md was present.

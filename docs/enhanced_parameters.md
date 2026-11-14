@@ -26,6 +26,8 @@ The calibration assertions must describe measurements, not merely enable flags.
 | `lidar_yaw` | `0.0` | rad | Scan-to-geometry yaw, positive CCW. Used in polygon/configured mode, or explicitly with align_legacy_heading in the fallback. The latter leaves the origin at the LiDAR; it is not a measured base_link transform. |
 | `transform_timeout_sec` | `0.1` | s | Maximum nonstatic TF stamp difference from scan stamp. Missing TF stops. |
 | `enable_curves` | `false` | bool | Requires polygon, valid mount and motion_model_calibrated; false preserves straight/spin fallback. |
+| `curve_linear_speed_cap` | `0.05` | requested m/s | Upper bound for simultaneous v/w output; >0 to 0.05. Straight-to-curve transitions brake before introducing angular output above this cap. Use 0.02 for initial measured-geometry commissioning. |
+| `curve_max_yaw_rate` | `0.20` | requested rad/s | Largest curved candidate yaw; 0.06 to 0.25. Initial commissioning can select 0.06. Stationary turns retain the profile's 0.25 limit; their angular output brakes before adding translation. |
 | `motion_model_calibrated` | `false` | bool | Operator assertion that nominal gains and absolute errors bound measured motion over the horizon. |
 | `linear_model_scale` | `1.0` | physical m/s per requested m/s | Nominal linear gain. Default is unverified until calibrated. |
 | `angular_model_scale` | `1.0` | physical rad/s per requested rad/s | Nominal angular gain. Default is unverified until calibrated. |
@@ -44,6 +46,8 @@ The calibration assertions must describe measurements, not merely enable flags.
 | `front_release_margin` | `0.1` | m | Extra front clearance above stop threshold before translation release. |
 | `confirm_sec` | `0.2` | s | Minimum elapsed time between usable distinct observations for release. |
 | `confirm_scans` | `2` | observations | Minimum distinct fresh observations as well as confirm_sec. |
+| `perception_release_sec` | `0.75` | s | Continuous usable-observation duration required after missing/invalid/stale perception or compute expiry. Runs concurrently with normal confirmation and never extends the recovery deadline. |
+| `perception_release_scans` | `5` | distinct fresh observations | Minimum count in addition to perception_release_sec. Failed evidence resets the gate; repeated control ticks do not count. Ordinary obstacle release uses confirm_sec/scans. |
 | `linear_accel` | `0.08` | requested m/s² | Normal increase rate; safety stops/caps bypass normal limiting. |
 | `linear_decel` | `0.15` | requested m/s² | Normal decrease rate; not a physical braking guarantee. |
 | `angular_accel` | `0.5` | requested rad/s² | Normal angular magnitude increase rate. |

@@ -112,7 +112,8 @@ class EnhancedAvoidance:
         key = (decision.state, decision.reason, decision.passing_side)
         new_safety_stop = (key != self.log_key and decision.state in ('stopped', 'latched')
                            and decision.reason not in
-                           ('waiting_for_scan', 'confirming_usable_perception'))
+                           ('waiting_for_scan', 'confirming_usable_perception',
+                            'perception_stability_confirming'))
         if new_safety_stop or now - self.last_log >= (0.2 if key != self.log_key else 0.5):
             def clean(value):
                 if isinstance(value, float) and not math.isfinite(value):
