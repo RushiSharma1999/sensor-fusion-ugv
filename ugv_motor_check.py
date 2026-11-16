@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Bounded serial checks for the uploaded ESP32-S3 v4 firmware.
+"""
+Bounded serial checks for the uploaded ESP32-S3 v4 firmware.
 
 Default --test check sends STOP and DEBUG 1, then reads telemetry; no nonzero
 velocity is requested. --test wheels requires the robot secured with all
@@ -12,6 +13,10 @@ or raw PWM commands and does not modify firmware. Speeds are uncalibrated
 command values, not measured physical speeds. ROS bridges/serial monitors
 must be stopped first. Software STOP is not latched against a new CMD from
 another process. Actual stopping distance cannot be established here.
+
+--test wheels-curves additionally requires --motors --wheels-raised. It sends
+two fixed 0.6-second combined forward/turn pulses with all driven wheels raised;
+it does not drive a curve on the floor or validate autonomous curved avoidance.
 """
 
 import argparse
@@ -63,20 +68,37 @@ class Probe:
         self.last_debug_print = 0.0
         self.last_stop_ok = False
         self.saw_pwm = False
+        self.armed = False
+        self.fault = None
 
     def send(self, command):
-        self.ser.write((command + '\n').encode('ascii'))
-        self.ser.flush()
+        if self.fault and command.startswith('CMD '):
+            raise RuntimeError(f'Probe fault latched: {self.fault}')
+        data = (command + '\n').encode('ascii')
+        try:
+            if self.ser.write(data) != len(data):
+                raise IOError('short serial write')
+            self.ser.flush()
+        except Exception as exc:
+            self.fault = f'Serial write fault: {exc}'
+            raise RuntimeError(self.fault) from exc
 
     def pump(self, seconds, expected_ack=None):
         deadline = time.monotonic() + seconds
         acknowledged = False
         while time.monotonic() < deadline:
-            raw = self.ser.readline(512)
+            try:
+                raw = self.ser.readline(512)
+            except Exception as exc:
+                self.fault = f'Serial read fault: {exc}'
+                raise RuntimeError(self.fault) from exc
             if not raw:
                 continue
             line = raw.decode('ascii', errors='replace').strip()
             self.lines.append(line)
+            if line.startswith('ERR') or (self.armed and line.startswith('READY')):
+                self.fault = f'Firmware error/reboot: {line}'
+                raise RuntimeError(self.fault)
             if line == expected_ack:
                 acknowledged = True
             if line.startswith('US|'):
@@ -137,8 +159,11 @@ class Probe:
                   flush=True)
         print('VALID=0/noecho is unknown range; this probe does not treat it as clear.',
               flush=True)
+        self.armed = True
 
     def pulse(self, label, v, w, duration=0.6):
+        if not self.armed or self.fault:
+            raise RuntimeError('A successful stopped-state handshake is required before a pulse')
         self.stop(verify=True)
         self.saw_pwm = False
         print(f'TEST {label}: CMD v {v:.3f} w {w:.3f} for {duration:.1f}s', flush=True)
@@ -163,7 +188,8 @@ class Probe:
             self.send('CMD v 0.050 w 0.000')
             self.pump(min(0.1, max(0, deadline - time.monotonic())))
         if not self.saw_pwm:
-            raise RuntimeError('No nonzero PWM before watchdog test; cannot verify active-motion timeout')
+            raise RuntimeError('No nonzero PWM before watchdog test; '
+                               'cannot verify active-motion timeout')
         self.debug = None
         self.pump(1.2)
         if not self.stopped():
@@ -175,8 +201,13 @@ class Probe:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--port', default=DEFAULT_PORT)
-    parser.add_argument('--test', choices=['check', 'wheels'], default='check')
+    parser.add_argument('--test', choices=['check', 'wheels', 'wheels-curves'], default='check')
+    parser.add_argument('--motors', action='store_true')
+    parser.add_argument('--wheels-raised', action='store_true')
+    parser.add_argument('--angular-command-sign', type=int, choices=[-1, 1], default=1)
     args = parser.parse_args()
+    if args.test == 'wheels-curves' and not (args.motors and args.wheels_raised):
+        parser.error('wheels-curves requires --motors --wheels-raised; no floor-curve test')
     if not Path(args.port).exists():
         parser.error(f'Serial port does not exist: {args.port}')
     owners = port_users(args.port)
@@ -207,9 +238,18 @@ def main():
         probe.check()
         if args.test == 'wheels':
             probe.pulse('forward: both wheels forward', 0.050, 0.000)
-            probe.pulse('left spin: left backward, right forward', 0.000, 0.250)
-            probe.pulse('right spin: left forward, right backward', 0.000, -0.250)
+            probe.pulse('left spin: left backward, right forward',
+                        0.000, args.angular_command_sign * 0.250)
+            probe.pulse('right spin: left forward, right backward',
+                        0.000, args.angular_command_sign * -0.250)
             probe.watchdog()
+        elif args.test == 'wheels-curves':
+            print('WHEELS RAISED ONLY: simultaneous v/w requests, not floor avoidance. '
+                  'Observe directions; firmware labels and ENC are not measurements.', flush=True)
+            probe.pulse('forward-left request; observe both wheel directions/rates',
+                        0.020, args.angular_command_sign * 0.060)
+            probe.pulse('forward-right request; observe both wheel directions/rates',
+                        0.020, args.angular_command_sign * -0.060)
     except KeyboardInterrupt:
         print('Interrupted; requesting STOP.', flush=True)
         code = 130

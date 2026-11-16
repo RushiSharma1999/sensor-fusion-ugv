@@ -19,8 +19,11 @@ def yaw_to_quat(yaw: float):
 
 
 class CmdVelToSerial(Node):
-    def __init__(self):
-        super().__init__('cmd_vel_to_serial')
+    def __init__(self, **node_kwargs):
+        super().__init__('cmd_vel_to_serial', **node_kwargs)
+
+        from .speed_profiles import declare_speed_profile
+        profile = declare_speed_profile(self)
 
         # Params
         self.declare_parameter('port', '/dev/ttyACM0')
@@ -32,8 +35,9 @@ class CmdVelToSerial(Node):
         self.declare_parameter('firmware_debug', True)
         self.declare_parameter('dry_run', True)
         self.declare_parameter('cmd_timeout_sec', 0.25)
-        self.declare_parameter('max_linear_speed', 0.05)
-        self.declare_parameter('max_angular_speed', 0.25)
+        self.declare_parameter('max_linear_speed', profile.linear)
+        self.declare_parameter('max_angular_speed', profile.angular)
+        self.declare_parameter('angular_command_sign', 1)
         self.declare_parameter('allow_reverse', False)
         self.declare_parameter('ultra_timeout_sec', 0.6)
 
@@ -47,6 +51,9 @@ class CmdVelToSerial(Node):
         self.rate_hz = float(self.get_parameter('rate_hz').value)
         self.rx_hz = float(self.get_parameter('rx_hz').value)
         self.debug_serial = bool(self.get_parameter('debug_serial').value)
+        self.angular_command_sign = self.get_parameter('angular_command_sign').value
+        if type(self.angular_command_sign) is not int or self.angular_command_sign not in (-1, 1):
+            raise ValueError('angular_command_sign must be integer -1 or +1')
 
         cmd_vel_topic = self.get_parameter('cmd_vel_topic').value
         odom_topic = self.get_parameter('odom_topic').value
@@ -63,6 +70,10 @@ class CmdVelToSerial(Node):
         if not (math.isfinite(self.rate_hz) and self.rate_hz > 0 and
                 math.isfinite(self.rx_hz) and self.rx_hz > 0):
             raise ValueError('rate_hz and rx_hz must be positive and finite')
+        if (abs(self.max_linear_speed - profile.linear) > 1e-9 or
+                abs(self.max_angular_speed - profile.angular) > 1e-9):
+            raise ValueError('Bridge limits must match speed_profile; '
+                             'select the same profile in both nodes')
         self.started_at = time.monotonic()
         self.startup_deadline = self.started_at + 5.0
         self.stop_acknowledged = False
@@ -107,7 +118,8 @@ class CmdVelToSerial(Node):
 
         self.get_logger().warn(
             f'dry_run={self.dry_run}; limits v={self.max_linear_speed:.3f} '
-            f'w={self.max_angular_speed:.3f}; waiting for firmware ACK STOP'
+            f'w={self.max_angular_speed:.3f}; angular_command_sign={self.angular_command_sign}; '
+            'waiting for firmware ACK STOP'
         )
         self.send_stop()
         self.get_logger().info(
@@ -163,7 +175,10 @@ class CmdVelToSerial(Node):
             reason = 'dry_run/' + reason
             v_wire = w_wire = 0.0
         else:
-            v_wire, w_wire = v, w
+            # Keep planning/limiting in ROS axes. Map to this installation's
+            # serial angular convention only at the wire boundary, exactly once.
+            v_wire = v
+            w_wire = self.angular_command_sign * w if w else 0.0
         line = f'CMD v {v_wire:.3f} w {w_wire:.3f}\n'
         self.tx_sequence += 1
         sent = self.write_serial(line)
@@ -172,7 +187,8 @@ class CmdVelToSerial(Node):
             self.get_logger().info(
                 f'TX seq={self.tx_sequence} elapsed={now-self.started_at:.3f} '
                 f'age={age:.3f} in_v={v_in:.4f} in_w={w_in:.4f} '
-                f'planned_v={v:.4f} planned_w={w:.4f} wire="{line.strip()}" '
+                f'planned_v={v:.4f} planned_w={w:.4f} '
+                f'angular_command_sign={self.angular_command_sign} wire="{line.strip()}" '
                 f'reason={reason} sent={int(sent)}'
             )
             self.last_trace_time, self.last_trace_key = now, key
@@ -277,9 +293,17 @@ class CmdVelToSerial(Node):
                     acknowledged = True
                     break
                 time.sleep(0.01)
+        except Exception as exc:
+            self.serial_fault = True
+            self.get_logger().error(f'Final STOP read failed: {exc}')
         finally:
-            self.ser.close()
-        self.get_logger().info(f'Final STOP acknowledgement observed={int(acknowledged)}')
+            try:
+                self.ser.close()
+            except Exception as exc:
+                self.serial_fault = True
+                self.get_logger().error(f'Serial close failed: {exc}')
+            finally:
+                self.get_logger().info(f'Final STOP acknowledgement observed={int(acknowledged)}')
 
     def handle_odom_line(self, line: str):
         try:

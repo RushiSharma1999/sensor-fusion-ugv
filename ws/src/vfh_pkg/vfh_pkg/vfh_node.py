@@ -12,8 +12,20 @@ from std_msgs.msg import Float32MultiArray, Bool, Float32
 
 
 class VFHObstacleAvoidance(Node):
-    def __init__(self):
-        super().__init__('vfh_obstacle_avoidance')
+    def __init__(self, **node_kwargs):
+        super().__init__('vfh_obstacle_avoidance', **node_kwargs)
+
+        self.declare_parameter('behavior', 'baseline')
+        behavior = self.get_parameter('behavior').value
+        if behavior == 'enhanced':
+            from .enhanced_node import EnhancedAvoidance
+            self.enhanced = EnhancedAvoidance(self)
+            self.cmd_pub = self.enhanced.cmd_pub
+            return
+        if behavior != 'baseline':
+            raise ValueError('behavior must be baseline or enhanced')
+        from esp_bridge.speed_profiles import declare_speed_profile
+        profile = declare_speed_profile(self)
 
         # ---------------------------------
         # Topics
@@ -43,9 +55,9 @@ class VFHObstacleAvoidance(Node):
         self.declare_parameter('hist_threshold', 1.15)
         self.declare_parameter('min_open_sectors', 3)
 
-        self.declare_parameter('forward_speed', 0.24)
+        self.declare_parameter('forward_speed', profile.linear)
         self.declare_parameter('min_speed', 0.05)
-        self.declare_parameter('max_yaw_rate', 1.0)
+        self.declare_parameter('max_yaw_rate', profile.angular)
         self.declare_parameter('steer_gain', 1.15)
 
         self.declare_parameter('front_slowdown_dist', 1.0)
@@ -98,6 +110,8 @@ class VFHObstacleAvoidance(Node):
         self.forward_speed = float(self.get_parameter('forward_speed').value)
         self.min_speed = float(self.get_parameter('min_speed').value)
         self.max_yaw_rate = float(self.get_parameter('max_yaw_rate').value)
+        if self.forward_speed > profile.linear or self.max_yaw_rate > profile.angular:
+            raise ValueError('Controller limits exceed selected speed_profile')
         self.steer_gain = float(self.get_parameter('steer_gain').value)
 
         self.front_slowdown_dist = float(self.get_parameter('front_slowdown_dist').value)

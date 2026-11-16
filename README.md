@@ -2,6 +2,13 @@
 
 This repository contains the ROS 2 workspace for the Sensor Fusion-Based Autonomous UGV project.
 
+For the **Jetson Orin Nano / Ubuntu 22.04 / ROS 2 Humble LiDAR-only test**, use
+[the implementation, installation and staged comparison guide](docs/lidar_avoidance.md).
+It preserves selectable baseline behavior, adds an enhanced controller, and
+includes offline and ROS tests. `run_cloud36_test.sh` and `run_continuous_bot.sh`
+now use the same cloud-36 command path. The general-stack Jazzy instructions
+below are separate from that Jetson test.
+
 The project integrates LiDAR, ultrasonic sensors, ToF processing, ESP32 serial communication, camera UART data, and obstacle avoidance algorithms for an autonomous unmanned ground vehicle.
 
 ## Repository Structure
