@@ -6,6 +6,10 @@ Accepted for the robot-ready integration target; implementation and verification
 
 This is a project architecture decision, not evidence that the current repository implements or verifies the complete stack.
 
+## Stationary LiDAR-only validation exception — 2026-11-01
+
+The user requested installation of `ugv-lidar-only-fix.tar.gz` on the Jetson working tree atop `775a357`. Current VFH and mux defaults are now explicitly LiDAR-only, with independent scan guards and one final mux command owner. This is a stationary validation exception to the selected production fusion target. Camera and fusion nodes are stopped and the motor bridge remains stopped. It does not accept later roadmap phases or establish motor, geometry, firmware, or autonomous-floor behavior. See [the validation record](../verification/lidar_only_stationary.md).
+
 ## Context
 
 The repository contains a rich modular path (`fusion_node`, VFH, camera candidate, `safety_mux_node`, and ESP bridge), a direct LiDAR-only `gap_follow` controller, and an integrated `esp_lidar_fusion_driver` experiment. Current source also lacks the PointCloud2-to-`/scan` connection, complete production bring-up, and MCU firmware.
@@ -93,3 +97,7 @@ Deferred. It would add dependencies on TF, odometry, localization, maps, lifecyc
 - Controlled low-speed baseline and rich-VFH course tests with logs tied to commits and configurations.
 
 Required evidence is enumerated in [`../verification/test_matrix.md`](../verification/test_matrix.md); no item is passed by this ADR alone.
+
+## User-selected original v4 integration — 2026-11-01
+
+The experimental six-pane launcher now targets the user's unchanged original `bot_firmware_v4.ino`. Jetson-side changes adapt STOP/HELP/DEBUG startup and per-direction US telemetry, leaving original firmware and local sonar veto intact. No ARM or MODE AUTO is generated. LiDAR-only describes Jetson navigation; firmware sonar can still veto motor outputs. This supersedes the earlier host-only-firmware startup selection and does not establish physical autonomy or release acceptance. See [current runbook and evidence](../verification/lidar_only_launcher.md).

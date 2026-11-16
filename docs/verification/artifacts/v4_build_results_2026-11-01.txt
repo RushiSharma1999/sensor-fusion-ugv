@@ -1,0 +1,15 @@
+Original unchanged v4 SHA256: 211044ee2ac54f16b4314ac9a764ee2b44180d247819f4febd1e6d37d9387988
+Branch fix/02-unitree-driver-and-tf; uncommitted working tree atop 775a357.
+ROS: source /opt/ros/humble/setup.bash && colcon build --packages-select esp_bridge --symlink-install
+Result: 1 package finished [3.95s]. No physical motor node started.
+
+Arduino: /opt/arduino-1.8.19/arduino-builder -compile -hardware /opt/arduino-1.8.19/hardware -hardware /home/sdp2026/.arduino15/packages -tools /opt/arduino-1.8.19/tools-builder -tools /home/sdp2026/.arduino15/packages -fqbn esp32:esp32:esp32s3:CDCOnBoot=default,USBMode=hwcdc -build-path /tmp/ugv-v4-target-build -build-cache /tmp/ugv-lidar-target-cache /home/sdp2026/Documents/ChatGPT/proj/bot_firmware_v4/bot_firmware_v4.ino
+First invocation failed: build directory did not exist. Created it and retried.
+Final result: exit 0. Sketch 345045 bytes (26% of 1310720); globals 23304 bytes (7% of 327680).
+Compile only: no upload performed.
+
+Native: g++ -std=c++17 -Wall -Wextra -I esp32-v4-review/include esp32-v4-review/review.cpp -o /tmp/esp32-v4-host-review && /tmp/esp32-v4-host-review
+All assertions passed: v4 startup STOP/HELP/DEBUG, CMD parsing/PWM mapping, immediate zero, MANUAL watchdog, sonar veto, original telemetry, and invalid command rejection. Two unused-mutex warnings are due to stubbed critical sections.
+
+PTY integration first attempt failed in sandbox before ROS startup: ~/.ros/log was read-only. Reran with ROS_LOG_DIR=/tmp/v4-ros-test-logs and local DDS permissions, domain161/localhost only.
+Final integration exit0: actual ROS VFH/mux/bridge + actual pyserial + unchanged v4 compiled with GPIO/sensor stubs. Clear scans produced virtual PWM79/79; all-inf and scan loss returned virtual PWM0/0; one final publisher. All serial traffic used /dev/pts, never hardware USB. No physical tests or firmware flash.

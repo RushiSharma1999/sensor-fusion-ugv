@@ -27,11 +27,26 @@ class CmdVelToSerial(Node):
         self.declare_parameter('rate_hz', 30.0)
         self.declare_parameter('rx_hz', 50.0)
         self.declare_parameter('debug_serial', False)
+        self.declare_parameter('cmd_timeout_sec', 0.25)
+        self.declare_parameter('max_linear_speed', 0.08)
+        self.declare_parameter('max_angular_speed', 0.4)
+        # Match unchanged v4 SENSOR_STALE_MS=800; diagnostic data only.
+        self.declare_parameter('ultrasonic_timeout_sec', 0.8)
+        self.cmd_timeout = float(self.get_parameter('cmd_timeout_sec').value)
+        self.max_linear = float(self.get_parameter('max_linear_speed').value)
+        self.max_angular = float(self.get_parameter('max_angular_speed').value)
+        self.ultrasonic_timeout = float(self.get_parameter('ultrasonic_timeout_sec').value)
+        self.serial_fault = False
+        self._us_samples = {}
+        self._us_published = None
+        self._debug_enable_at = time.monotonic() + 1.0
+        self._debug_enabled = False
 
         self.declare_parameter('cmd_vel_topic', '/cmd_vel')
         self.declare_parameter('odom_topic', '/odom')
         self.declare_parameter('tof_front_topic', '/tof/front/summary')
         self.declare_parameter('ultra_raw_topic', '/esp/ultrasonic_raw')
+        self.declare_parameter('motor_status_topic', '/esp/motor_status')
 
         port = self.get_parameter('port').get_parameter_value().string_value
         baud = self.get_parameter('baud').get_parameter_value().integer_value
@@ -44,12 +59,16 @@ class CmdVelToSerial(Node):
         tof_front_topic = self.get_parameter('tof_front_topic').value
         ultra_raw_topic = self.get_parameter('ultra_raw_topic').value
 
-        self.ser = serial.Serial(port, baud, timeout=0.0)
+        if any(not math.isfinite(x) or x <= 0 for x in
+               (self.rate_hz, self.rx_hz, self.cmd_timeout, self.max_linear, self.max_angular,
+                self.ultrasonic_timeout)):
+            raise ValueError('Invalid bridge rates, limits, or timeout')
+        self.ser = serial.Serial(port, baud, timeout=0.0, write_timeout=0.05)
         self.get_logger().info(f"Serial open: {port} @ {baud}")
 
         # cmd_vel in
         self.last_twist = Twist()
-        self.last_rx_time = time.time()
+        self.last_rx_time = time.monotonic()
         self.sub = self.create_subscription(Twist, cmd_vel_topic, self.on_cmd_vel, 10)
 
         # odom out + TF
@@ -59,6 +78,8 @@ class CmdVelToSerial(Node):
         # sensor outputs
         self.tof_front_pub = self.create_publisher(String, tof_front_topic, 10)
         self.ultra_raw_pub = self.create_publisher(String, ultra_raw_topic, 10)
+        self.motor_status_pub = self.create_publisher(
+            String, self.get_parameter('motor_status_topic').value, 10)
 
         # Serial RX line buffer
         self._rx_buf = ""
@@ -73,31 +94,68 @@ class CmdVelToSerial(Node):
         )
 
     def on_cmd_vel(self, msg: Twist):
-        self.last_twist = msg
-        self.last_rx_time = time.time()
+        values = (msg.linear.x, msg.linear.y, msg.linear.z,
+                  msg.angular.x, msg.angular.y, msg.angular.z)
+        if not all(math.isfinite(value) for value in values):
+            self.last_twist = Twist()
+            self.get_logger().error('Nonfinite cmd_vel rejected; requesting zero')
+        else:
+            self.last_twist = msg
+        self.last_rx_time = time.monotonic()
+
+    def send_zero(self):
+        # Best effort only: a disconnected link cannot deliver a stop.
+        try:
+            self.ser.write(b'CMD v 0.000 w 0.000\n')
+        except Exception:
+            pass
 
     def on_cmd_timer(self):
-        if time.time() - self.last_rx_time > 0.25:
-            v = 0.0
-            w = 0.0
+        if self.serial_fault or time.monotonic() - self.last_rx_time > self.cmd_timeout:
+            v, w = 0.0, 0.0
         else:
-            v = float(self.last_twist.linear.x)
-            w = float(self.last_twist.angular.z)
-
-        line = f"CMD v {v:.3f} w {w:.3f}\n"
+            v, w = float(self.last_twist.linear.x), float(self.last_twist.angular.z)
+            if not math.isfinite(v) or not math.isfinite(w):
+                v, w = 0.0, 0.0
+            # No reverse in the initial LiDAR-only profile. Preserve curvature.
+            v = max(0.0, v)
+            factor = min(1.0, self.max_linear / max(abs(v), 1e-12),
+                         self.max_angular / max(abs(w), 1e-12))
+            v, w = v * factor, w * factor
+        payload = f'CMD v {v:.3f} w {w:.3f}\n'.encode('ascii')
         try:
-            self.ser.write(line.encode('ascii'))
+            # Re-enable v4 diagnostics after a possible USB-open board reset.
+            # This command changes logging only; velocity comes solely from mux.
+            if self.debug_serial and not self._debug_enabled and time.monotonic() >= self._debug_enable_at:
+                debug = b'DEBUG 1\n'
+                if self.ser.write(debug) != len(debug):
+                    raise IOError('partial debug command write')
+                self._debug_enabled = True
+            if self.ser.write(payload) != len(payload):
+                raise IOError('partial serial write')
         except Exception as e:
-            self.get_logger().error(f"Serial write failed: {e}")
+            self.serial_fault = True
+            self.last_twist = Twist()
+            self.get_logger().error(f'Serial fault latched; restart bridge after repair: {e}')
+            self.send_zero()
 
     def on_rx_timer(self):
+        self.publish_v4_ultrasonic()
         try:
             data = self.ser.read(4096)
             if not data:
                 return
             self._rx_buf += data.decode('ascii', errors='ignore')
         except Exception as e:
-            self.get_logger().error(f"Serial read failed: {e}")
+            self.serial_fault = True
+            self.last_twist = Twist()
+            self.send_zero()
+            self.get_logger().error(f"Serial read fault latched: {e}")
+            return
+
+        if len(self._rx_buf) > 16384:
+            self._rx_buf = ''
+            self.get_logger().warn('Oversized serial receive buffer discarded')
             return
 
         while '\n' in self._rx_buf:
@@ -115,7 +173,58 @@ class CmdVelToSerial(Node):
                 self.handle_tof_line(line)
             elif line.startswith("ULTRA|"):
                 self.handle_ultra_line(line)
-            # ignore everything else
+            elif line.startswith("US|"):
+                self.handle_v4_us_line(line)
+            elif line.startswith("DBG|T:"):
+                msg = String()
+                msg.data = line
+                self.motor_status_pub.publish(msg)
+            # Default v4 emits no ODOM. Never synthesize it from commands.
+
+    def handle_v4_us_line(self, line):
+        """Convert unchanged v4's per-sensor US records to the ROS schema."""
+        try:
+            pairs = [part.split(':', 1) for part in line.split('|')[1:]]
+            fields = dict(pairs)
+            if len(fields) != len(pairs):
+                raise ValueError('duplicate field')
+            name = fields['ID']
+            stamp = int(fields['T'])
+            valid = int(fields['VALID'])
+            cm = float(fields['CM'])
+            if (name not in ('FRONT', 'LEFT', 'RIGHT', 'BACK') or
+                    not 0 <= stamp <= 0xffffffff or valid not in (0, 1) or
+                    not math.isfinite(cm) or not 2.0 <= cm <= 400.0):
+                raise ValueError('invalid ultrasonic fields')
+        except (KeyError, ValueError):
+            self.get_logger().warn(f'Bad v4 US line: {line}')
+            return
+        previous = self._us_samples.get(name)
+        # Repeated telemetry for the same MCU sample must not renew freshness.
+        received = (previous[3] if previous and previous[0] == stamp
+                    else time.monotonic())
+        self._us_samples[name] = (stamp, cm, valid, received)
+        self.publish_v4_ultrasonic()
+
+    def publish_v4_ultrasonic(self):
+        if not self._us_samples:
+            return
+        now = time.monotonic()
+        distances, validity = {}, {}
+        for name in ('FRONT', 'LEFT', 'RIGHT', 'BACK'):
+            sample = self._us_samples.get(name)
+            valid = bool(sample and sample[2] and now - sample[3] <= self.ultrasonic_timeout)
+            distances[name] = sample[1] if valid else 400.0
+            validity[name] = int(valid)
+        # T is the most recently received MCU sample timestamp, including wrap.
+        stamp = max(self._us_samples.values(), key=lambda sample: sample[3])[0]
+        data = (f'T:{stamp}|' + '|'.join(f'{k}:{v:.1f}' for k, v in distances.items()) +
+                '|' + '|'.join(f'VALID_{k}:{v}' for k, v in validity.items()))
+        if data != self._us_published:
+            msg = String()
+            msg.data = data
+            self.ultra_raw_pub.publish(msg)
+            self._us_published = data
 
     def handle_odom_line(self, line: str):
         try:
@@ -130,6 +239,8 @@ class CmdVelToSerial(Node):
             th = get_val("th")
             v = get_val("v")
             w = get_val("w")
+            if not all(math.isfinite(value) for value in (x, y, th, v, w)):
+                raise ValueError('Nonfinite odometry')
         except Exception:
             self.get_logger().warn(f"Bad ODOM line: {line}")
             return
@@ -254,6 +365,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        node.send_zero()
         try:
             node.ser.close()
         except Exception:

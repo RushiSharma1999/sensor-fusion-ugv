@@ -1,0 +1,22 @@
+{
+  "duration_sec": 6.53,
+  "state_samples": 41,
+  "host_active_samples": 0,
+  "latched_samples": 0,
+  "peak_abs_pwm_left": 0,
+  "peak_abs_pwm_right": 0,
+  "encoder_samples": 41,
+  "encoder_first": [
+    0,
+    0
+  ],
+  "encoder_last": [
+    0,
+    0
+  ],
+  "encoder_left_span": 0,
+  "encoder_right_span": 0,
+  "bridge_stopped_after_trial": true,
+  "user_confirmed": "Wheels securely raised, motor power on, hardware stop available",
+  "analysis_note": "Only records after latest bridge-start marker are counted; older tmux scrollback is preserved in raw log but excluded from trial metrics."
+}

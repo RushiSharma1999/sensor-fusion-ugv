@@ -1,0 +1,12 @@
+{
+  "/home/sdp2026/sensor-fusion-ugv-migration/start_lidar_only.sh": "56a6ac23bfd0e5a18918340a263ced86224384c7087887537fb51503d256c67e",
+  "/home/sdp2026/sensor-fusion-ugv-migration/scripts/esp32_prepare_lidar.py": "7b4b529f0994c4e7fd843935967f5ac399185835e9caffa69051977bc2103498",
+  "/home/sdp2026/sensor-fusion-ugv-migration/ws/src/esp_bridge/esp_bridge/cmd_vel_to_serial.py": "6eb0c59d9b09cd1923ffdbe94fbdc305f19d7ef60844cfd0fea4103beff8c9b1",
+  "/home/sdp2026/sensor-fusion-ugv-migration/config/lidar_only.yaml": "8f621323d10047feb4ea5a28926f382c48dce7050b25f2f6f511b99320cad96e",
+  "/home/sdp2026/Downloads/bot_firmware_v4.ino": "211044ee2ac54f16b4314ac9a764ee2b44180d247819f4febd1e6d37d9387988",
+  "/home/sdp2026/Documents/ChatGPT/proj/bot_firmware_v4/bot_firmware_v4.ino": "211044ee2ac54f16b4314ac9a764ee2b44180d247819f4febd1e6d37d9387988",
+  "/home/sdp2026/Documents/ChatGPT/proj/esp32-v4-review/bot_firmware_v4.ino": "211044ee2ac54f16b4314ac9a764ee2b44180d247819f4febd1e6d37d9387988",
+  "/home/sdp2026/Documents/ChatGPT/proj/esp32-v4-review/review.cpp": "ea600670f06d03db9635b274fbb3479680c173a08b439ef840ed226ad4d71430",
+  "/home/sdp2026/Documents/ChatGPT/proj/esp32-v4-review/wire_sim.cpp": "8ce9ed2efd2b712989eb1ab233161ff7574d8dfb3988e5fd50e6cc5830963495",
+  "/home/sdp2026/Documents/ChatGPT/proj/esp32-v4-review/ros_pty_integration.py": "70cef8c728b02e2d0103cf640c41775757ad0511919693b6d905cbb95312bb13"
+}

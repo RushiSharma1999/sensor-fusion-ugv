@@ -6,6 +6,28 @@ This matrix is the planned acceptance inventory for the robot-ready roadmap. A r
 
 Allowed initial status is **Not Run**. Later results should use explicit terms such as **Pass**, **Fail**, **Blocked**, or **Not Applicable**, with evidence. “Automated” identifies software-executable checks; “hardware” identifies a physical test and must record whether wheels were raised or the robot was on a controlled floor.
 
+## Jetson stationary LiDAR-only correction — 2026-11-01
+
+User-authorized working-tree correction atop `775a357`, on existing branch `fix/02-unitree-driver-and-tf`; no branch switch or phase acceptance. [Procedure and evidence](lidar_only_stationary.md).
+
+| Check | Status | Scope |
+|---|---|---|
+| Archive integrity and target source matching | Pass | Archive SHA-256 and all three original source hashes verified before installation. |
+| Offline bundle callbacks/installer | Pass | 48 tests; fake ROS/serial only. |
+| Three-package Jetson build | Pass after repair | Initial duplicate-package failure from installer backups; `ws/ugv-lidar-backups/COLCON_IGNORE` fixed discovery. |
+| Live scan, final command ownership and dropout observation | Pass (software scope) | 20/111 baseline scans had no finite front returns; one final command owner. Scan-loss and candidate-loss settled samples were all zero (21 and 22). Cause of dropout remains unknown. |
+| Measured obstacle, wheels-raised and controlled floor tests | Not Run | Motor bridge stopped; physical disable state and geometry not independently verified. |
+
+These results do not pass the broader production SCAN/SAFE/VFH requirements below.
+
+## LiDAR-only launcher — 2026-11-01
+
+User-requested [six-pane launcher](lidar_only_launcher.md) adds explicit `--drive`, managed `--replace`/`--stop`, startup graph/scan checks and serial ownership checks. Shell syntax, seven CLI tests, real stationary startup/replacement, live ROS readiness and shutdown passed. Motor-enabled execution remains **Not Run**; physical behavior remains **not yet hardware verified**. Evidence: `LAUNCH-LIDAR-ONLY-001`. This does not accept production/floor autonomy.
+
+## STOP-latch recovery and wheels-raised diagnosis — 2026-11-01
+
+[Recovery record](stop_latch_recovery.md): explicit --arm helper/launcher path, 59 software regressions passed. User-confirmed wheels-raised tests recovered STOP and confirmed firmware accepts LiDAR commands. Clear-scene PWM peaked at 25/20 but encoder counts did not advance; **motor movement not verified**, insufficient torque/power/driver/encoder conditions unresolved. A first inactive-DTR/RTS handshake timed out, then bridge-matching settings worked. These tests do not pass floor, braking or safe-speed requirements.
+
 ## Phase 1 target-Pi acceptance procedure
 
 Run this procedure on a freshly imaged Raspberry Pi 4 with Ubuntu 22.04 LTS ARM64 and ROS 2 Humble installed using the official ROS instructions. Replace both placeholders before testing. It verifies dependency resolution, build, install, tests, and package discovery only; it must not start a LiDAR, serial, motor, Ethernet-configuration, or autonomous process.
@@ -375,3 +397,15 @@ Press Ctrl-C once and confirm both processes exit. The approved headless subset 
 ## First-release gate
 
 The first robot-ready release cannot pass while any applicable required row is **Not Run**, **Fail**, or lacks a traceable artifact. Optional vision rows may be formally marked **Not Applicable** for a release that excludes camera following, with the scope recorded in the release evidence.
+
+## Raised-wheel calibration artifact — 2026-11-01
+
+[Procedure](motor_calibration_procedure.md): separate stopped-by-default MCU sketch; encoder hand checks before powered sweep; explicit operator ceiling; one positive-duty motor at a time; zero/STOP/250 ms watchdog. Target S3 build and software-model tests **Pass**. Actual flashing, minimum-starting-PWM measurement, motor direction, loaded speed regulation, braking and floor trials **Not Run**. No calibrated values are assigned from placeholders.
+
+## No-flags launcher default — 2026-11-01
+
+User explicitly requested one-command motion startup. Normal launcher invocation now enables drive/replacement/one-time startup ARM; a no-flags stop wrapper was added. Nine launcher CLI tests and shell syntax checks Pass; dry run verified all six commands. No new motor-output or LiDAR-guard change. Motor response remains unresolved and floor testing Not Run.
+
+## Original v4 Jetson compatibility — 2026-11-01 (current selection)
+
+Supersedes the earlier one-time ARM startup selection. 75 automated tests, shell syntax/dry plan, ROS bridge build, unchanged v4 target compile and real ROS/virtual-serial command-chain integration **Pass**. Simulation uses original firmware with stubbed GPIO/sensors and never opens the motor device. Verified virtual forward PWM and zero on all-inf/scan loss, startup identity and motor/sonar telemetry. Physical v4 upload, raised-wheel response/signs/stop/watchdog and controlled floor trials **Not Run**. [Runbook](lidar_only_launcher.md), [results](artifacts/v4_ros_pty_2026-11-01.json).

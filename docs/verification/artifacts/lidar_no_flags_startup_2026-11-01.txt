@@ -1,0 +1,20 @@
+test_arm_cannot_be_added_to_stationary_mode (test_launcher.LauncherTests) ... ok
+test_bad_flag_rejected (test_launcher.LauncherTests) ... ok
+test_custom_port_is_one_quoted_argument (test_launcher.LauncherTests) ... ok
+test_drive_includes_bounded_profile_and_serial_identity (test_launcher.LauncherTests) ... ok
+test_exactly_six_panes_and_no_unwanted_nodes (test_launcher.LauncherTests) ... ok
+test_help_needs_no_ros (test_launcher.LauncherTests) ... ok
+test_missing_port_rejected (test_launcher.LauncherTests) ... ok
+test_plain_start_enables_bridge_and_one_time_arm (test_launcher.LauncherTests) ... ok
+test_stationary_keeps_bridge_disabled (test_launcher.LauncherTests) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.122s
+
+OK
+
+No hardware motion or floor test run. Changed launcher defaults only.
+{
+  "start_lidar_only.sh": "8411a69e04e62cfa575a310948af598ca98da635f2e39f19b439d13516c5171c",
+  "stop_lidar_only.sh": "4de5310a6960c2595efe43f3d08f099098cc202a3bf9b7319e76ea51fc01ea9d"
+}

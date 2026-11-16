@@ -1,0 +1,93 @@
+lidar: bot_stack:0.0
+
+converter: bot_stack:0.1
+
+vfh: bot_stack:0.2
+
+probe: bot_stack:0.3
+
+mux: bot_stack:0.6
+
+bridge_stopped: bot_stack:0.7
+
+BUILD esp_bridge:
+running develop
+running egg_info
+writing esp_bridge.egg-info/PKG-INFO
+writing dependency_links to esp_bridge.egg-info/dependency_links.txt
+writing entry points to esp_bridge.egg-info/entry_points.txt
+writing requirements to esp_bridge.egg-info/requires.txt
+writing top-level names to esp_bridge.egg-info/top_level.txt
+reading manifest file 'esp_bridge.egg-info/SOURCES.txt'
+writing manifest file 'esp_bridge.egg-info/SOURCES.txt'
+running build_ext
+Creating /home/sdp2026/sensor-fusion-ugv-migration/ws/install/esp_bridge/lib/python3.10/site-packages/esp-bridge.egg-link (link to .)
+Installing cmd_vel_to_serial script to /home/sdp2026/sensor-fusion-ugv-migration/ws/install/esp_bridge/lib/esp_bridge
+
+Installed /home/sdp2026/sensor-fusion-ugv-migration/ws/build/esp_bridge
+running symlink_data
+
+
+BUILD vfh_pkg:
+running develop
+running egg_info
+writing vfh_pkg.egg-info/PKG-INFO
+writing dependency_links to vfh_pkg.egg-info/dependency_links.txt
+writing entry points to vfh_pkg.egg-info/entry_points.txt
+writing requirements to vfh_pkg.egg-info/requires.txt
+writing top-level names to vfh_pkg.egg-info/top_level.txt
+reading manifest file 'vfh_pkg.egg-info/SOURCES.txt'
+writing manifest file 'vfh_pkg.egg-info/SOURCES.txt'
+running build_ext
+Creating /home/sdp2026/sensor-fusion-ugv-migration/ws/install/vfh_pkg/lib/python3.10/site-packages/vfh-pkg.egg-link (link to .)
+Installing vfh_node script to /home/sdp2026/sensor-fusion-ugv-migration/ws/install/vfh_pkg/lib/vfh_pkg
+
+Installed /home/sdp2026/sensor-fusion-ugv-migration/ws/build/vfh_pkg
+running symlink_data
+
+
+BUILD vision_uart_pkg:
+running develop
+running egg_info
+writing vision_uart_pkg.egg-info/PKG-INFO
+writing dependency_links to vision_uart_pkg.egg-info/dependency_links.txt
+writing entry points to vision_uart_pkg.egg-info/entry_points.txt
+writing requirements to vision_uart_pkg.egg-info/requires.txt
+writing top-level names to vision_uart_pkg.egg-info/top_level.txt
+reading manifest file 'vision_uart_pkg.egg-info/SOURCES.txt'
+writing manifest file 'vision_uart_pkg.egg-info/SOURCES.txt'
+running build_ext
+Creating /home/sdp2026/sensor-fusion-ugv-migration/ws/install/vision_uart_pkg/lib/python3.10/site-packages/vision-uart-pkg.egg-link (link to .)
+Installing camera_follow_node script to /home/sdp2026/sensor-fusion-ugv-migration/ws/install/vision_uart_pkg/lib/vision_uart_pkg
+Installing safety_mux_node script to /home/sdp2026/sensor-fusion-ugv-migration/ws/install/vision_uart_pkg/lib/vision_uart_pkg
+Installing vision_uart_receiver_node script to /home/sdp2026/sensor-fusion-ugv-migration/ws/install/vision_uart_pkg/lib/vision_uart_pkg
+
+Installed /home/sdp2026/sensor-fusion-ugv-migration/ws/build/vision_uart_pkg
+running symlink_data
+
+
+INITIAL BUILD ATTEMPT: exit 1. Duplicate package vision_uart_pkg in src/vision_uart_pkg and ugv-lidar-backups/20261101T230850.204824Z/vision_uart_pkg. Added ws/ugv-lidar-backups/COLCON_IGNORE; rebuilt successfully: Summary: 3 packages finished [4.12s].
+
+Original bundle: python3 -m unittest discover -s tests -v => 48 tests passed (0.227s), in /tmp/ugv-lidar-review/ugv-lidar-only-fix.
+
+Repository deployed-source suite: python3 -m unittest discover -s tests/lidar_only -v => 43 tests passed (0.113s).
+
+python3 scripts/validate_ros_packages.py => PASS: validated 10 ROS manifests, 11 source packages, Python entry points/import dependencies, Humble build-script defaults, Unitree SDK architecture/install assets, and installed launch/config/RViz resource paths.
+
+git diff --check => exit 0.
+
+Converter first launch encountered unfinished text in idle shell and failed syntax parsing. Cleared line with C-u and repeated original launch command successfully. No projection parameters changed.
+
+Live VFH SIGINT shutdown raises RCLError while publishing after ROS context shutdown (also present before patch). This does not establish a clean VFH shutdown; mux candidate-loss zero behavior was verified separately.
+
+Motor serial bridge not started; no /dev/ttyACM0 owner seen by fuser. Physical motor disable/emergency stop and wheel position were not independently verified.
+
+Source/config SHA-256:
+{
+  "ws/src/vfh_pkg/vfh_pkg/vfh_node.py": "cba1925ec4673a8e1badfc56b225d5810ab51f92b7eb1057a7f3a2a06bb75a61",
+  "ws/src/vision_uart_pkg/vision_uart_pkg/safety_mux_node.py": "2796b1c7f7a2680c9ce14220cbcd3ff7e918a6e24264c4fed566eeefccfb1f05",
+  "ws/src/esp_bridge/esp_bridge/cmd_vel_to_serial.py": "6f734953b5a6fc97567d08f607b8cdde7e44667fc41cf73587b39ba1748a46d9",
+  "ws/src/vision_uart_pkg/package.xml": "f64c3f047d07eff96a2b3dee29fe7f1b796cf9513797bc1723383e10d4cf46ee",
+  "config/lidar_only.yaml": "0420fbaff70ef150beae44514bb0c2dc6f4de9a83b4fdf1d8d62bebfafb2ae49",
+  "tests/lidar_only/test_control.py": "a07efb3743750a0c93e12c64f192ff9ca016ec5fef157cb08d0e9ff4e2088a95"
+}

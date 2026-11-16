@@ -8,6 +8,10 @@ The first robot-ready autonomous release is a low-speed reactive obstacle-avoida
 
 The first release does not depend on SLAM, Nav2, mapping, global planning, waypoints, occupancy-grid navigation, full localization, advanced probabilistic fusion, or an Extended Kalman Filter.
 
+## Stationary validation status — 2026-11-01
+
+The user-requested [Jetson LiDAR-only correction](../verification/lidar_only_stationary.md) adds scan guards, bounded requests and stationary software evidence. The production target above still requires fusion and the complete hardware gates. This experiment does not satisfy the release requirements for autonomous enable, measured transforms, firmware, encoders, physical stopping, or floor trials.
+
 ## Term definitions
 
 ### Pi-cloneable
@@ -83,3 +87,5 @@ On the target Pi and physical release configuration:
 Robot-ready acceptance requires a fresh target-Pi clone, documented dependency installation, successful workspace build, passing automated tests, one supported bring-up command, valid Unitree data, valid robot-centric `/scan`, exactly one final `/cmd_vel` owner, checked-in compatible ESP firmware, verified command-to-motor behavior, explicit freshness/fault behavior, verified emergency-stop and communication-loss stopping, measured motor signs, controlled autonomous obstacle-avoidance testing, and recorded release evidence.
 
 Until every applicable gate is passed, describe the repository as under integration or partially verified—not deployment-ready, robot-ready, or safely autonomous.
+
+The current experimental launcher targets unchanged original v4 firmware with Jetson-side startup/telemetry adaptation. Its open-loop PWM, local sonar veto, nonlatched STOP, 500 ms MANUAL watchdog and disabled default ODOM remain original behaviors. Software/virtual-serial validation does not satisfy physical speed, stop or autonomous floor requirements. See [v4 runbook](../verification/lidar_only_launcher.md).

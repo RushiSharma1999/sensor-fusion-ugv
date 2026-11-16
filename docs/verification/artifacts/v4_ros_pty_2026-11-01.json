@@ -1,0 +1,23 @@
+{
+  "checks": "clear scan drives virtual PWM; all-inf stops; scan loss stops; one final publisher; v4 telemetry parsed",
+  "final_command": [
+    0.0,
+    0.0
+  ],
+  "final_state": "DBG|T:3280|MODE:IDLE|DOING:STOPPED (IDLE)|WHY:|F:noecho|L:noecho|R:noecho|V:0.00|W:0.00|PWM:0/0|AUTOEN:0|ENC:0/0",
+  "forward_example": "DBG|T:2200|MODE:MANUAL|DOING:FORWARD|WHY:host command|F:noecho|L:noecho|R:noecho|V:0.08|W:0.00|PWM:79/79|AUTOEN:0|ENC:0/0",
+  "ready": {
+    "arm_sent": false,
+    "firmware": "v4",
+    "stopped": {
+      "auto_enabled": 0,
+      "doing": "STOPPED (IDLE)",
+      "mode": "IDLE",
+      "pwmL": 0,
+      "pwmR": 0
+    }
+  },
+  "scope": "real ROS/DDS and pyserial with original v4 simulated GPIO, no motor hardware",
+  "status_records": 108,
+  "ultrasonic_records": 1
+}

@@ -6,7 +6,7 @@
       "use_system_timestamp": true,
       "range_min": 0.0,
       "range_max": 100.0,
-      "cloud_scan_num": 18,
+      "cloud_scan_num": 36,
       "serial_port": "/dev/ttyACM0",
       "baudrate": 4000000,
       "lidar_port": 6101,

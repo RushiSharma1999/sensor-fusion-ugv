@@ -1,0 +1,21 @@
+BASE: 775a3577a63a8344646dfbd82dcf3dff30eaa554 (uncommitted user-authorized working tree)
+LAUNCHER SHA256: bea000c760e0bea913dd1463dfbb0e52ea97c9a7903abc18c10c6c34272c674b
+python3 -m unittest discover -s tests/lidar_only -p test_launcher.py -v
+test_bad_flag_rejected (test_launcher.LauncherTests) ... ok
+test_custom_port_is_one_quoted_argument (test_launcher.LauncherTests) ... ok
+test_default_has_no_motor_bridge (test_launcher.LauncherTests) ... ok
+test_drive_includes_bounded_profile_and_serial_identity (test_launcher.LauncherTests) ... ok
+test_exactly_six_panes_and_no_unwanted_nodes (test_launcher.LauncherTests) ... ok
+test_help_needs_no_ros (test_launcher.LauncherTests) ... ok
+test_missing_port_rejected (test_launcher.LauncherTests) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 0.069s
+
+OK
+
+bash -n start_lidar_only.sh: exit 0
+LIVE COMMANDS: ./start_lidar_only.sh --detach; ./start_lidar_only.sh --replace --detach; extracted embedded ROS preflight tested alone; ./start_lidar_only.sh --stop
+LIVE RESULT: six ordered titled panes, five running ROS/diagnostic nodes and disabled bridge; replacement startup passed; live ROS preflight passed; /dev/ttyACM0 remained unopened (fuser exit 1); managed stop succeeded.
+LIVE LOGS: ws/log/lidar_only/20261101-160213-17865 and ws/log/lidar_only/20261101-160256-18199
+No --drive execution, firmware upload, motor actuation or floor testing was performed.

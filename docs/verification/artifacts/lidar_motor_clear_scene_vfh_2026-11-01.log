@@ -1,0 +1,27 @@
+valley              
+[WARN] [1793579351.063201897] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[WARN] [1793579351.147546553] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[WARN] [1793579351.230390456] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns              
+[WARN] [1793579351.316522946] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[INFO] [1793579351.397962964] [vfh_obstacle_avoidance]: [NORMAL] front_min=2.08 observed_front=2.08 open_frac=0.21 observed_sectors=18/33 blocked_ctr=0 target_sector=11 target_angle=-0.42 fusion_urgency=0.00 v=0.06 w=-0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(9, 11)]                               
+[WARN] [1793579351.484190049] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[WARN] [1793579351.566142563] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns              
+[WARN] [1793579351.649964674] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[INFO] [1793579351.735658366] [vfh_obstacle_avoidance]: [NORMAL] front_min=2.08 observed_front=2.66 open_frac=0.39 observed_sectors=19/33 blocked_ctr=0 target_sector=16 target_angle=0.00 fusion_urgency=0.00 v=0.08 w=0.00 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(12, 16)]                                
+[INFO] [1793579351.816112592] [vfh_obstacle_avoidance]: [NORMAL] front_min=2.08 observed_front=2.08 open_frac=0.36 observed_sectors=17/33 blocked_ctr=0 target_sector=13 target_angle=-0.25 fusion_urgency=0.00 v=0.07 w=-0.10 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(9, 13)]                               
+[WARN] [1793579351.904092405] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[WARN] [1793579351.985504518] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[WARN] [1793579352.068200801] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[WARN] [1793579352.153355115] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns              
+[WARN] [1793579352.236020932] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[INFO] [1793579352.320774849] [vfh_obstacle_avoidance]: [NORMAL] front_min=2.08 observed_front=2.08 open_frac=0.27 observed_sectors=19/33 blocked_ctr=0 target_sector=5 target_angle=-0.93 fusion_urgency=0.00 v=0.06 w=-0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(3, 7), (9, 11)]                        
+[WARN] [1793579352.404443195] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[WARN] [1793579352.486724040] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns              
+[WARN] [1793579352.572240638] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[WARN] [1793579352.654015835] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[INFO] [1793579352.738993215] [vfh_obstacle_avoidance]: [NORMAL] front_min=2.08 observed_front=3.50 open_frac=0.36 observed_sectors=16/33 blocked_ctr=0 target_sector=5 target_angle=-0.93 fusion_urgency=0.00 v=0.06 w=-0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(1, 5), (7, 11)]                        
+[INFO] [1793579352.821489747] [vfh_obstacle_avoidance]: [NORMAL] front_min=2.60 observed_front=3.50 open_frac=0.27 observed_sectors=16/33 blocked_ctr=0 target_sector=3 target_angle=-1.10 fusion_urgency=0.00 v=0.05 w=-0.23 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(1, 3)]                                 
+[INFO] [1793579352.905074410] [vfh_obstacle_avoidance]: [NORMAL] front_min=2.60 observed_front=2.66 open_frac=0.30 observed_sectors=19/33 blocked_ctr=0 target_sector=17 target_angle=0.08 fusion_urgency=0.00 v=0.06 w=-0.12 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(7, 9), (16, 18)]                       
+[WARN] [1793579352.992128786] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley              
+[WARN] [1793579353.070719719] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns              
+

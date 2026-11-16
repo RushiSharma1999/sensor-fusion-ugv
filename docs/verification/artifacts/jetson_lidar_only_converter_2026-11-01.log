@@ -1,0 +1,13 @@
+cd /home/sdp2026/sensor-fusion-ugv-migration/ws && source install/setup.bash && ros2 run pointcloud_to_laserscan pointcloud_to_laserscan_node --ros-args -r cloud_in:=/unilidar/cloud -r scan:=/scan -p target_frame:=unilidar_lidar -p min_height:=-0.10 -p max_height:=1.0 -p range_min:=0.15 -p range_max:=20.0 -p use_inf:=true      
+sdp2026@A:~/sensor-fusion-ugv-migration$ cd /home/sdp2026/sensor-fusion-ugv-migration/ws && source install/setup.bash && ros2 run pointcloud_to_laserscan pointcloud_to_laserscan_node --ros-args -r cloud_in:=/unilidar/cloud -r scan:=/scan -p target_frame:=unilidar_lidar -p min_height:=-0.10 -p max_height:=1.0 -p range_min:=0.15 -p range_max:=20.0 -p use_inf:=true            
+[INFO] [1793571288.723628941] [pointcloud_to_laserscan]: Got a subscriber to laserscan, starting pointcloud subscriber
+[INFO] [1793571736.274794611] [pointcloud_to_laserscan]: No subscribers to laserscan, shutting down pointcloud subscriber
+[INFO] [1793571744.092090989] [pointcloud_to_laserscan]: Got a subscriber to laserscan, starting pointcloud subscriber
+sdp2026@A:~/sensor-fusion-ugv-migration/ws$             s.close()cd /home/sdp2026/sensor-fusion-ugv-migration/ws && source install/setup.bash && ros2 run pointcloud_to_laserscan pointcloud_to_laserscan_node --ros-args -r cloud_in:=/unilidar/cloud -r scan:=/scan -p target_frame:=unilidar_lidar -p min_height:=-0.10 -p max_height:=1.0 -p range_min:=0.15 -p range_max:=20.0 -p use_inf:=true           
+-bash: syntax error near unexpected token `cd' 
+sdp2026@A:~/sensor-fusion-ugv-migration/ws$ cd /home/sdp2026/sensor-fusion-ugv-migration/ws && source install/setup.bash && ros2 run pointcloud_to_laserscan pointcloud_to_laserscan_node --ros-args -r cloud_in:=/unilidar/cloud -r scan:=/scan -p target_frame:=unilidar_lidar -p min_height:=-0.10 -p max_height:=1.0 -p range_min:=0.15 -p range_max:=20.0 -p use_inf:=true         
+[INFO] [1793574591.765100643] [pointcloud_to_laserscan]: Got a subscriber to laserscan, starting pointcloud subscriber                       
+^C[INFO] [1793574667.499092803] [rclcpp]: signal_handler(SIGINT/SIGTERM)                      
+sdp2026@A:~/sensor-fusion-ugv-migration/ws$ cd /home/sdp2026/sensor-fusion-ugv-migration/ws && source install/setup.bash && ros2 run pointcloud_to_laserscan pointcloud_to_laserscan_node --ros-args -r cloud_in:=/unilidar/cloud -r scan:=/scan -p target_frame:=unilidar_lidar -p min_height:=-0.10 -p max_height:=1.0 -p range_min:=0.15 -p range_max:=20.0 -p use_inf:=true         
+[INFO] [1793574670.599319062] [pointcloud_to_laserscan]: Got a subscriber to laserscan, starting pointcloud subscriber                       
+

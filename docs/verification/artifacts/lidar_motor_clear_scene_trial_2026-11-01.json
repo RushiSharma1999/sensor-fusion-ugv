@@ -1,0 +1,20 @@
+{
+  "requested_trial_sec": 8,
+  "state_samples": 61,
+  "host_active_samples": 13,
+  "latched_samples": 0,
+  "peak_abs_pwm_left": 25,
+  "peak_abs_pwm_right": 20,
+  "encoder_first": [
+    -1,
+    0
+  ],
+  "encoder_last": [
+    -1,
+    0
+  ],
+  "encoder_left_span": 0,
+  "encoder_right_span": 0,
+  "bridge_stopped_after_trial": true,
+  "user_confirmed": "Front clear; drive wheels raised, motor power on, hardware stop available"
+}

@@ -1,0 +1,284 @@
+0 th 0.0000 v 0.000 w 0.000             
+[INFO] [1793579214.089865793] [cmd_vel_to_serial]: SERIAL: ENC L 0 R 0          
+[INFO] [1793579214.107169715] [cmd_vel_to_serial]: SERIAL: ULTRA|T:99700|FRONT:400.0|LEFT:400.0|RIGHT:158.3|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579214.108706757] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579214.186346977] [cmd_vel_to_serial]: SERIAL: ODOM x 0.0000 y 0.0000 th 0.0000 v 0.000 w 0.000             
+[INFO] [1793579214.188810898] [cmd_vel_to_serial]: SERIAL: ENC L 0 R 0          
+[INFO] [1793579214.206679286] [cmd_vel_to_serial]: SERIAL: ULTRA|T:99800|FRONT:400.0|LEFT:400.0|RIGHT:158.3|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579214.207610517] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579214.287095341] [cmd_vel_to_serial]: SERIAL: ODOM x 0.0000 y 0.0000 th 0.0000 v 0.000 w 0.000             
+[INFO] [1793579214.290605375] [cmd_vel_to_serial]: SERIAL: ENC L 0 R 0          
+[INFO] [1793579214.307385504] [cmd_vel_to_serial]: SERIAL: ULTRA|T:99900|FRONT:400.0|LEFT:400.0|RIGHT:158.3|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579214.308940755] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579214.387224612] [cmd_vel_to_serial]: SERIAL: ODOM x 0.0000 y 0.0000 th 0.0000 v 0.000 w 0.000             
+[INFO] [1793579214.389287559] [cmd_vel_to_serial]: SERIAL: ENC L 0 R 0          
+[INFO] [1793579214.407413012] [cmd_vel_to_serial]: SERIAL: ULTRA|T:100000|FRONT:400.0|LEFT:400.0|RIGHT:158.3|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579214.408992551] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579214.486127411] [cmd_vel_to_serial]: SERIAL: ODOM x 0.0000 y 0.0000 th 0.0000 v 0.000 w 0.000             
+[INFO] [1793579214.487928557] [cmd_vel_to_serial]: SERIAL: ENC L 0 R 0          
+[INFO] [1793579214.506264578] [cmd_vel_to_serial]: SERIAL: ULTRA|T:100100|FRONT:400.0|LEFT:400.0|RIGHT:157.9|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579214.507110621] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579214.587341805] [cmd_vel_to_serial]: SERIAL: ODOM x 0.0000 y 0.0000 th 0.0000 v 0.000 w 0.000             
+[INFO] [1793579214.590654169] [cmd_vel_to_serial]: SERIAL: ENC L 0 R 0          
+[INFO] [1793579214.606605279] [cmd_vel_to_serial]: SERIAL: ULTRA|T:100200|FRONT:400.0|LEFT:400.0|RIGHT:157.9|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579214.608183475] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579214.687211324] [cmd_vel_to_serial]: SERIAL: ODOM x 0.0000 y 0.0000 th 0.0000 v 0.000 w 0.000             
+[INFO] [1793579214.690573065] [cmd_vel_to_serial]: SERIAL: ENC L 0 R 0          
+[INFO] [1793579214.707736855] [cmd_vel_to_serial]: SERIAL: ULTRA|T:100300|FRONT:400.0|LEFT:400.0|RIGHT:157.7|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579214.709421806] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579214.786047529] [cmd_vel_to_serial]: SERIAL: ODOM x 0.0000 y 0.0000 th 0.0000 v 0.000 w 0.000             
+[INFO] [1793579214.787831939] [cmd_vel_to_serial]: SERIAL: ENC L 0 R 0          
+[INFO] [1793579214.807558148] [cmd_vel_to_serial]: SERIAL: ULTRA|T:100400|FRONT:400.0|LEFT:16.0|RIGHT:157.7|BACK:400.0|VALID_FRONT:0|VALID_LEFT:1|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579214.809132311] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579214.887417640] [cmd_vel_to_serial]: SERIAL: ODOM x 0.0000 y 0.0000 th 0.0000 v 0.000 w 0.000             
+[INFO] [1793579214.890087967] [cmd_vel_to_serial]: SERIAL: ENC L 0 R 0          
+[INFO] [1793579214.906946307] [cmd_vel_to_serial]: SERIAL: ULTRA|T:100500|FRONT:400.0|LEFT:16.0|RIGHT:157.5|BACK:400.0|VALID_FRONT:0|VALID_LEFT:1|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579214.907715196] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579214.987717253] [cmd_vel_to_serial]: SERIAL: ODOM x 0.0000 y 0.0000 th 0.0000 v 0.000 w 0.000             
+[INFO] [1793579346.562760421] [cmd_vel_to_serial]: Serial open: /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A84021142-if00 @ 115200                           
+[INFO] [1793579346.575396031] [cmd_vel_to_serial]: Bridge running: /cmd_vel -> serial, serial -> /odom, /tof/front/summary, /esp/ultrasonic_raw                 
+[INFO] [1793579346.595593326] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579346.597098847] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579346.597714163] [cmd_vel_to_serial]: SERIAL: ULTRA|T:232200|FRONT:400.0|LEFT:400.0|RIGHT:104.4|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579346.598460939] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579346.696652764] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579346.699769409] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579346.700551227] [cmd_vel_to_serial]: SERIAL: ULTRA|T:232300|FRONT:400.0|LEFT:400.0|RIGHT:104.4|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579346.701274130] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 22 pwmR 11 sonar 1                  
+[INFO] [1793579346.796266268] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579346.798088471] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579346.798723243] [cmd_vel_to_serial]: SERIAL: ULTRA|T:232400|FRONT:400.0|LEFT:400.0|RIGHT:104.3|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579346.799465923] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 23 pwmR 14 sonar 1                  
+[INFO] [1793579346.896806905] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579346.899910974] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579346.901775386] [cmd_vel_to_serial]: SERIAL: ULTRA|T:232500|FRONT:400.0|LEFT:400.0|RIGHT:104.2|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579346.903685592] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579346.996934985] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579346.999532958] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579347.001135250] [cmd_vel_to_serial]: SERIAL: ULTRA|T:232600|FRONT:400.0|LEFT:400.0|RIGHT:104.2|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579347.002751558] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579347.096884404] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579347.099930134] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579347.101248353] [cmd_vel_to_serial]: SERIAL: ULTRA|T:232700|FRONT:400.0|LEFT:400.0|RIGHT:103.7|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579347.102765138] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579347.197117479] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579347.200368177] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579347.201120041] [cmd_vel_to_serial]: SERIAL: ULTRA|T:232800|FRONT:400.0|LEFT:400.0|RIGHT:103.7|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579347.201932995] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 24 pwmR 17 sonar 1                  
+[INFO] [1793579347.296985359] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579347.300520129] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579347.301876365] [cmd_vel_to_serial]: SERIAL: ULTRA|T:232900|FRONT:400.0|LEFT:400.0|RIGHT:102.4|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579347.303855534] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579347.396742003] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579347.399656721] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579347.400966396] [cmd_vel_to_serial]: SERIAL: ULTRA|T:233000|FRONT:275.8|LEFT:400.0|RIGHT:102.4|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579347.402460556] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579347.496637371] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579347.499154189] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579347.500508825] [cmd_vel_to_serial]: SERIAL: ULTRA|T:233100|FRONT:275.8|LEFT:400.0|RIGHT:100.5|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579347.501980745] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579347.596490018] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579347.599393889] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579347.600728844] [cmd_vel_to_serial]: SERIAL: ULTRA|T:233200|FRONT:400.0|LEFT:400.0|RIGHT:100.5|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0       
+[INFO] [1793579347.602216796] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 24 pwmR 17 sonar 1                  
+[INFO] [1793579347.696657396] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579347.699504080] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579347.700807962] [cmd_vel_to_serial]: SERIAL: ULTRA|T:233300|FRONT:400.0|LEFT:400.0|RIGHT:99.0|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579347.702283050] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579347.797078797] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579347.799985868] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579347.801774342] [cmd_vel_to_serial]: SERIAL: ULTRA|T:233400|FRONT:400.0|LEFT:400.0|RIGHT:98.3|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579347.803344601] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579347.896650635] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579347.899256032] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579347.900605452] [cmd_vel_to_serial]: SERIAL: ULTRA|T:233500|FRONT:400.0|LEFT:400.0|RIGHT:98.3|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579347.902254657] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579347.996809788] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579347.999872576] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579348.000752892] [cmd_vel_to_serial]: SERIAL: ULTRA|T:233600|FRONT:400.0|LEFT:400.0|RIGHT:97.8|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579348.001492628] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579348.095806312] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579348.097546080] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579348.098298969] [cmd_vel_to_serial]: SERIAL: ULTRA|T:233700|FRONT:167.7|LEFT:400.0|RIGHT:97.8|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579348.099072658] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579348.196620014] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579348.199169537] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579348.200476427] [cmd_vel_to_serial]: SERIAL: ULTRA|T:233800|FRONT:167.7|LEFT:400.0|RIGHT:97.7|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579348.201972348] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 16 pwmR 16 sonar 1                  
+[INFO] [1793579348.296711581] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579348.299862691] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579348.301287793] [cmd_vel_to_serial]: SERIAL: ULTRA|T:233900|FRONT:400.0|LEFT:400.0|RIGHT:97.7|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579348.302380629] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 22 pwmR 11 sonar 1                  
+[INFO] [1793579348.395957744] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579348.397701833] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579348.398295900] [cmd_vel_to_serial]: SERIAL: ULTRA|T:234000|FRONT:400.0|LEFT:400.0|RIGHT:96.7|BACK:400.0|VALID_FRONT:0|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579348.399068341] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 21 pwmR 7 sonar 1                   
+[INFO] [1793579348.495854681] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579348.498392811] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579348.499794649] [cmd_vel_to_serial]: SERIAL: ULTRA|T:234100|FRONT:156.2|LEFT:400.0|RIGHT:96.7|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579348.501304426] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579348.596825028] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579348.599822214] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579348.601202098] [cmd_vel_to_serial]: SERIAL: ULTRA|T:234200|FRONT:154.8|LEFT:400.0|RIGHT:95.2|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579348.602824391] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579348.696760270] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579348.699647852] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579348.700940374] [cmd_vel_to_serial]: SERIAL: ULTRA|T:234300|FRONT:154.8|LEFT:400.0|RIGHT:95.2|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579348.702511177] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 16 pwmR 16 sonar 1                  
+[INFO] [1793579348.796776794] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579348.804055527] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579348.806072776] [cmd_vel_to_serial]: SERIAL: ULTRA|T:234400|FRONT:153.6|LEFT:400.0|RIGHT:93.5|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579348.807825601] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 22 pwmR 11 sonar 1                  
+[INFO] [1793579348.896572544] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579348.899570209] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579348.900903116] [cmd_vel_to_serial]: SERIAL: ULTRA|T:234500|FRONT:153.6|LEFT:400.0|RIGHT:92.8|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579348.902459103] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579348.996687823] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579348.999652336] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579349.001099742] [cmd_vel_to_serial]: SERIAL: ULTRA|T:234600|FRONT:153.4|LEFT:400.0|RIGHT:92.8|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579349.002704371] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579349.096616825] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579349.099437620] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579349.100809313] [cmd_vel_to_serial]: SERIAL: ULTRA|T:234700|FRONT:153.4|LEFT:400.0|RIGHT:93.1|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579349.102315730] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579349.196496225] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579349.199088981] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579349.200427392] [cmd_vel_to_serial]: SERIAL: ULTRA|T:234800|FRONT:152.1|LEFT:400.0|RIGHT:93.1|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579349.201960978] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579349.296487564] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579349.299393899] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579349.300716598] [cmd_vel_to_serial]: SERIAL: ULTRA|T:234900|FRONT:152.1|LEFT:400.0|RIGHT:93.0|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579349.302203174] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579349.396580315] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579349.399537691] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579349.400898983] [cmd_vel_to_serial]: SERIAL: ULTRA|T:235000|FRONT:153.0|LEFT:400.0|RIGHT:93.0|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579349.402377111] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579349.496475364] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579349.499034199] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579349.500339745] [cmd_vel_to_serial]: SERIAL: ULTRA|T:235100|FRONT:153.0|LEFT:400.0|RIGHT:93.7|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579349.501829937] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579349.596488144] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579349.599064643] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579349.600384046] [cmd_vel_to_serial]: SERIAL: ULTRA|T:235200|FRONT:154.4|LEFT:400.0|RIGHT:93.7|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579349.601844254] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579349.696577279] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579349.699305047] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579349.700601185] [cmd_vel_to_serial]: SERIAL: ULTRA|T:235300|FRONT:153.9|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579349.702065169] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579349.796448198] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579349.799011641] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579349.800369445] [cmd_vel_to_serial]: SERIAL: ULTRA|T:235400|FRONT:153.9|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579349.801962873] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579349.896558838] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579349.899486517] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579349.900862913] [cmd_vel_to_serial]: SERIAL: ULTRA|T:235500|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579349.902460789] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579349.996483423] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579349.999278842] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579350.000626277] [cmd_vel_to_serial]: SERIAL: ULTRA|T:235600|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579350.002150327] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579350.096416777] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579350.098857912] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579350.100196931] [cmd_vel_to_serial]: SERIAL: ULTRA|T:235700|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579350.101694580] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579350.196485687] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579350.199115116] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579350.200427255] [cmd_vel_to_serial]: SERIAL: ULTRA|T:235800|FRONT:154.3|LEFT:6.9|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:1|VALID_RIGHT:1|VALID_BACK:0          
+[INFO] [1793579350.201904967] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579350.296667752] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579350.299616264] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579350.300892689] [cmd_vel_to_serial]: SERIAL: ULTRA|T:235900|FRONT:154.3|LEFT:6.9|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:1|VALID_RIGHT:1|VALID_BACK:0          
+[INFO] [1793579350.302353409] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579350.396581169] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579350.399561426] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579350.400831067] [cmd_vel_to_serial]: SERIAL: ULTRA|T:236000|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579350.402340300] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579350.496409560] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579350.498918953] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579350.500223091] [cmd_vel_to_serial]: SERIAL: ULTRA|T:236100|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579350.501739141] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579350.596632011] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579350.599500904] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579350.600818930] [cmd_vel_to_serial]: SERIAL: ULTRA|T:236200|FRONT:154.3|LEFT:400.0|RIGHT:93.7|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579350.602301027] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579350.696515539] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579350.699636312] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579350.701110696] [cmd_vel_to_serial]: SERIAL: ULTRA|T:236300|FRONT:154.3|LEFT:400.0|RIGHT:93.7|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579350.702635129] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579350.796605537] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579350.799301081] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579350.800698374] [cmd_vel_to_serial]: SERIAL: ULTRA|T:236400|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579350.802344187] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579350.898692049] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579350.902542542] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579350.903971356] [cmd_vel_to_serial]: SERIAL: ULTRA|T:236500|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579350.905511470] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579350.996585400] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579350.999738335] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579351.001090378] [cmd_vel_to_serial]: SERIAL: ULTRA|T:236600|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579351.002671902] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579351.096756330] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579351.099499939] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579351.100824878] [cmd_vel_to_serial]: SERIAL: ULTRA|T:236700|FRONT:154.3|LEFT:400.0|RIGHT:93.7|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579351.102301533] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579351.196398538] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579351.198867290] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579351.199631891] [cmd_vel_to_serial]: SERIAL: ULTRA|T:236800|FRONT:154.3|LEFT:400.0|RIGHT:93.7|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579351.200480654] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579351.296858692] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579351.299229425] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579351.299863846] [cmd_vel_to_serial]: SERIAL: ULTRA|T:236900|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579351.300572285] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579351.396222555] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579351.398049463] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579351.399406243] [cmd_vel_to_serial]: SERIAL: ULTRA|T:237000|FRONT:153.9|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579351.400956245] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579351.496508208] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579351.499193576] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579351.500570644] [cmd_vel_to_serial]: SERIAL: ULTRA|T:237100|FRONT:153.9|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579351.502125863] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 16 pwmR 16 sonar 1                  
+[INFO] [1793579351.596809702] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579351.599832008] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579351.600491901] [cmd_vel_to_serial]: SERIAL: ULTRA|T:237200|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579351.601224533] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579351.695785361] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579351.697657165] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579351.698259169] [cmd_vel_to_serial]: SERIAL: ULTRA|T:237300|FRONT:154.3|LEFT:400.0|RIGHT:93.7|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579351.699037914] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579351.795740827] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579351.797492596] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579351.798977796] [cmd_vel_to_serial]: SERIAL: ULTRA|T:237400|FRONT:154.3|LEFT:400.0|RIGHT:93.7|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579351.800519734] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 16 pwmR 16 sonar 1                  
+[INFO] [1793579351.897496480] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579351.901315963] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579351.902324028] [cmd_vel_to_serial]: SERIAL: ULTRA|T:237500|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579351.903208281] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 25 pwmR 20 sonar 1                  
+[INFO] [1793579351.995871159] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579351.997798837] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579351.998423465] [cmd_vel_to_serial]: SERIAL: ULTRA|T:237600|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579351.999202339] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579352.096513399] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579352.099202094] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579352.100530489] [cmd_vel_to_serial]: SERIAL: ULTRA|T:237700|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579352.102060363] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579352.196768907] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579352.199855311] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579352.201252797] [cmd_vel_to_serial]: SERIAL: ULTRA|T:237800|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579352.202802287] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579352.296371882] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579352.298151492] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579352.298872699] [cmd_vel_to_serial]: SERIAL: ULTRA|T:237900|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579352.299655540] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579352.395816484] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579352.398188497] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579352.399580446] [cmd_vel_to_serial]: SERIAL: ULTRA|T:238000|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579352.401124848] [cmd_vel_to_serial]: SERIAL: STATE host_active 1 stop_latched 0 ok 1 reason host_command pwmL 16 pwmR 16 sonar 1                  
+[INFO] [1793579352.496777454] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579352.499872819] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579352.501216222] [cmd_vel_to_serial]: SERIAL: ULTRA|T:238100|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579352.502817522] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+[INFO] [1793579352.596980993] [cmd_vel_to_serial]: SERIAL: ODOM x -0.0068 y -0.0003 th 0.0908 v 0.000 w 0.000           
+[INFO] [1793579352.599128070] [cmd_vel_to_serial]: SERIAL: ENC L -1 R 0         
+[INFO] [1793579352.599755707] [cmd_vel_to_serial]: SERIAL: ULTRA|T:238200|FRONT:154.3|LEFT:400.0|RIGHT:93.3|BACK:400.0|VALID_FRONT:1|VALID_LEFT:0|VALID_RIGHT:1|VALID_BACK:0        
+[INFO] [1793579352.600488051] [cmd_vel_to_serial]: SERIAL: STATE host_active 0 stop_latched 0 ok 1 reason host_zero pwmL 0 pwmR 0 sonar 1                       
+

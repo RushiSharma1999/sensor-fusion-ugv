@@ -11,7 +11,7 @@ class VisionUartReceiver(Node):
     def __init__(self):
         super().__init__('vision_uart_receiver')
 
-        self.declare_parameter('port', '/dev/serial0')
+        self.declare_parameter('port', '/dev/ttyTHS1')
         self.declare_parameter('baudrate', 115200)
         self.declare_parameter('timeout', 0.2)
         self.declare_parameter('target_timeout_sec', 1.5)

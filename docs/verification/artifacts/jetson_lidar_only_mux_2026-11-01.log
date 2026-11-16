@@ -1,0 +1,26 @@
+cd /home/sdp2026/sensor-fusion-ugv-migration/ws && source install/setup.bash && ros2 run vision_uart_pkg safety_mux_node
+sdp2026@A:~/sensor-fusion-ugv-migration$ cd /home/sdp2026/sensor-fusion-ugv-migration/ws && source install/setup.bash && ros2 run vision_uart_pkg safety_mux_node                           
+[INFO] [1793571288.784317863] [safety_mux_node]: Safety mux node started. Publishing final /cmd_vel
+^CTraceback (most recent call last):     
+  File "/home/sdp2026/sensor-fusion-ugv-migration/ws/install/vision_uart_pkg/lib/vision_uart_pkg/safety_mux_node", line 33, in <module>
+    sys.exit(load_entry_point('vision-uart-pkg', 'console_scripts', 'safety_mux_node')())     
+  File "/home/sdp2026/sensor-fusion-ugv-migration/ws/build/vision_uart_pkg/vision_uart_pkg/safety_mux_node.py", line 134, in main
+    node.cmd_pub.publish(Twist())        
+  File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/publisher.py", line 70, in publish
+    self.__publisher.publish(msg)        
+rclpy._rclpy_pybind11.RCLError: Failed to publish: publisher's context is invalid, at ./src/rcl/publisher.c:389
+[ros2run]: Process exited with failure 1 
+sdp2026@A:~/sensor-fusion-ugv-migration/ws$ cd ~/sensor-fusion-ugv-migration/ws && source install/setup.bash && ros2 run vision_uart_pkg safety_mux_node --ros-args -p prefer_camera_when_target_seen:=false
+[INFO] [1793571767.724092469] [safety_mux_node]: Safety mux node started. Publishing final /cmd_vel
+^CTraceback (most recent call last):           
+  File "/home/sdp2026/sensor-fusion-ugv-migration/ws/install/vision_uart_pkg/lib/vision_uart_pkg/safety_mux_node", line 33, in <module>      
+    sys.exit(load_entry_point('vision-uart-pkg', 'console_scripts', 'safety_mux_node')())     
+  File "/home/sdp2026/sensor-fusion-ugv-migration/ws/build/vision_uart_pkg/vision_uart_pkg/safety_mux_node.py", line 134, in main            
+    node.cmd_pub.publish(Twist())              
+  File "/opt/ros/humble/local/lib/python3.10/dist-packages/rclpy/publisher.py", line 70, in publish                  
+    self.__publisher.publish(msg)              
+rclpy._rclpy_pybind11.RCLError: Failed to publish: publisher's context is invalid, at ./src/rcl/publisher.c:389      
+[ros2run]: Process exited with failure 1       
+sdp2026@A:~/sensor-fusion-ugv-migration/ws$ cd /home/sdp2026/sensor-fusion-ugv-migration/ws && source install/setup.bash && ros2 run vision_uart_pkg safety_mux_node --ros-args --params-file /home/sdp2026/ugv-lidar-only-fix/lidar_only.yaml                                            
+[INFO] [1793574568.206432048] [safety_mux_node]: Safety mux node started. Publishing final /cmd_vel                  
+

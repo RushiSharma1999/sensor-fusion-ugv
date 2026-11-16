@@ -35,3 +35,6 @@ data/lidar_data_*.csv
 # Generated graph files
 frames_*.gv
 frames_*.pdf
+
+# Local LiDAR-only installer recovery copies
+ws/ugv-lidar-backups/

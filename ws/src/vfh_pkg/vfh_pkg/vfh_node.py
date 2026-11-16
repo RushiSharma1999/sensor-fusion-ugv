@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import math
+import time
+from collections import deque
 from typing import List, Tuple
 
 import rclpy
@@ -8,6 +10,39 @@ from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Float32MultiArray, Bool, Float32
+
+
+def inspect_scan(msg, now_sec, max_age, half_fov):
+    """Finite returns are evidence; no-return bins are unknown, never clear.
+
+    This checks message structure/freshness, not physical frame alignment or
+    whether a projected scan represents the full robot footprint.
+    """
+    if not msg.ranges:
+        return False, 'empty_scan'
+    values = (msg.angle_min, msg.angle_max, msg.angle_increment,
+              msg.range_min, msg.range_max)
+    if not all(math.isfinite(x) for x in values):
+        return False, 'nonfinite_metadata'
+    if msg.angle_increment <= 0 or msg.range_min < 0 or msg.range_max <= msg.range_min:
+        return False, 'bad_metadata'
+    end = msg.angle_min + (len(msg.ranges) - 1) * msg.angle_increment
+    if abs(end - msg.angle_max) > max(1e-5, 1.5 * msg.angle_increment):
+        return False, 'range_count_mismatch'
+    if msg.angle_min > -half_fov + msg.angle_increment or end < half_fov - msg.angle_increment:
+        return False, 'insufficient_fov'
+    stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+    if stamp <= 0 or not -0.1 <= now_sec - stamp <= max_age:
+        return False, 'stale_or_bad_stamp'
+    front_count = 0
+    for i, value in enumerate(msg.ranges):
+        angle = msg.angle_min + i * msg.angle_increment
+        if (abs(angle) <= math.radians(15.0) and math.isfinite(value)
+                and value > 0 and msg.range_min <= value <= msg.range_max):
+            front_count += 1
+    if front_count == 0:
+        return False, 'no_finite_front_returns'
+    return True, 'ok'
 
 
 class VFHObstacleAvoidance(Node):
@@ -127,6 +162,40 @@ class VFHObstacleAvoidance(Node):
         self.fusion_smooth_suppression = float(self.get_parameter('fusion_smooth_suppression').value)
         self.fusion_priority_speed_limit = float(self.get_parameter('fusion_priority_speed_limit').value)
 
+        # LiDAR-only validation profile. Existing escape parameters are accepted
+        # for launch compatibility, but command-integrated escape is disabled.
+        self.declare_parameter('use_fusion', False)
+        self.use_fusion = bool(self.get_parameter('use_fusion').value)
+        self.declare_parameter('scan_timeout_sec', 0.25)
+        self.declare_parameter('max_scan_age_sec', 0.5)
+        self.declare_parameter('obstacle_hold_sec', 0.5)
+        self.scan_timeout_sec = float(self.get_parameter('scan_timeout_sec').value)
+        self.max_scan_age_sec = float(self.get_parameter('max_scan_age_sec').value)
+        self.obstacle_hold_sec = float(self.get_parameter('obstacle_hold_sec').value)
+        numeric = [self.sector_angle_deg, self.front_fov_deg, self.robot_radius,
+                   self.safety_margin, self.max_range_clip, self.obstacle_influence_dist,
+                   self.hist_threshold, self.forward_speed, self.min_speed,
+                   self.max_yaw_rate, self.steer_gain, self.front_stop_dist,
+                   self.front_slowdown_dist, self.ema_alpha, self.scan_timeout_sec,
+                   self.max_scan_age_sec, self.obstacle_hold_sec]
+        if (not all(math.isfinite(x) for x in numeric)
+                or self.sector_angle_deg <= 0 or not 30 <= self.front_fov_deg <= 360
+                or self.robot_radius < 0 or self.safety_margin < 0
+                or self.max_range_clip <= 0 or self.obstacle_influence_dist <= 0
+                or self.hist_threshold <= 0 or self.forward_speed < 0
+                or self.max_yaw_rate <= 0 or self.steer_gain < 0
+                or self.front_stop_dist < 0
+                or self.front_slowdown_dist <= self.front_stop_dist
+                or not 0 < self.ema_alpha <= 1
+                or self.scan_timeout_sec <= 0 or self.max_scan_age_sec <= 0
+                or not 0 <= self.obstacle_hold_sec <= 1.0):
+            raise ValueError('Invalid VFH/scan guard configuration')
+        self.last_scan_receipt = None
+        self.scan_healthy = False
+        self.scan_fault = 'waiting_for_scan'
+        self.scan_history = deque(maxlen=128)
+        self.last_message_stamp = None
+
         # histogram sizing
         self.num_sectors = max(5, int(round(self.front_fov_deg / self.sector_angle_deg)))
         if self.num_sectors % 2 == 0:
@@ -192,7 +261,10 @@ class VFHObstacleAvoidance(Node):
 
         self.cmd_pub = self.create_publisher(Twist, cmd_topic, 10)
 
-        self.get_logger().info('VFH obstacle avoidance node started.')
+        self.scan_watchdog = self.create_timer(0.05, self.check_scan_timeout)
+        self.get_logger().info('VFH obstacle avoidance with conservative scan guard started.')
+        self.get_logger().warn('min_speed is compatibility-only; no positive speed floor. '
+                               'Open-loop escape rotations are disabled.')
         self.get_logger().info(f'scan_topic={scan_topic}, cmd_topic={cmd_topic}')
         self.get_logger().info(
             f'front_fov_deg={self.front_fov_deg:.1f}, sectors={self.num_sectors}, mode={self.mode}'
@@ -200,73 +272,77 @@ class VFHObstacleAvoidance(Node):
 
     # ---------------- Fusion callbacks ----------------
     def on_fusion_penalties(self, msg: Float32MultiArray):
+        if not self.use_fusion:
+            return
         if len(msg.data) == self.num_sectors:
-            self.fusion_penalties = list(msg.data)
+            data = [float(x) for x in msg.data]
+            if all(math.isfinite(x) and x >= 0 for x in data):
+                self.fusion_penalties = data
+            else:
+                self.fusion_critical_stop = True
+                self.publish_stop('invalid_fusion_penalties')
+        else:
+            self.fusion_critical_stop = True
+            self.publish_stop('bad_fusion_penalty_count')
 
     def on_fusion_stop(self, msg: Bool):
+        if not self.use_fusion:
+            return
         self.fusion_critical_stop = bool(msg.data)
+        if self.fusion_critical_stop:
+            self.publish_stop('fusion_critical_stop')
 
     def on_fusion_speed(self, msg: Float32):
-        self.fusion_speed_limit = self.clamp(float(msg.data), 0.0, 1.0)
+        if not self.use_fusion:
+            return
+        value = float(msg.data)
+        self.fusion_speed_limit = self.clamp(value, 0.0, 1.0) if math.isfinite(value) else 0.0
+        if self.fusion_speed_limit == 0:
+            self.publish_stop('fusion_speed_zero')
 
     # ---------------- Main scan callback ----------------
     def scan_callback(self, msg: LaserScan):
-        if not msg.ranges:
+        now = time.monotonic()
+        self.last_scan_receipt = now
+        valid, reason = inspect_scan(msg, self.get_clock().now().nanoseconds * 1e-9,
+                                     self.max_scan_age_sec, self.total_hist_fov_rad / 2)
+        stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        if valid and self.last_message_stamp is not None and stamp <= self.last_message_stamp:
+            valid, reason = False, 'nonadvancing_scan_stamp'
+        self.scan_healthy = valid
+        if not valid:
+            self.scan_fault = reason
+            self.publish_stop(reason)
             return
-
-        dt = self.compute_dt(msg)
+        self.last_message_stamp = stamp
+        self.scan_fault = 'ok'
+        self._last_stop_reason = None
 
         hist, sector_clearance, front_min = self.build_histogram(msg)
+        observed_front_min = front_min
+        # Only retain hazards: history never creates current visibility or
+        # converts unknown bins into free space. No odometry-based deskew here.
+        self.scan_history.append((now, hist[:], sector_clearance[:], front_min))
+        while self.scan_history and now - self.scan_history[0][0] > self.obstacle_hold_sec:
+            self.scan_history.popleft()
+        for _, old_hist, old_clearance, old_front in self.scan_history:
+            hist = [max(a, b) for a, b in zip(hist, old_hist)]
+            sector_clearance = [min(a, b) for a, b in zip(sector_clearance, old_clearance)]
+            front_min = min(front_min, old_front)
 
-        if len(self.fusion_penalties) == self.num_sectors:
-            hist = [h + p for h, p in zip(hist, self.fusion_penalties)]
-
-        open_mask = [h < self.hist_threshold for h in hist]
-        valleys = self.find_open_valleys(open_mask)
-
-        open_count = sum(1 for x in open_mask if x)
-        open_fraction = open_count / max(1, len(open_mask))
-
-        clogged = (open_fraction < self.blocked_open_fraction) and (front_min < self.escape_clearance_dist)
-
-        if self.escape_holdoff_counter > 0:
-            self.escape_holdoff_counter -= 1
-
-        if self.mode == 'normal' and self.escape_holdoff_counter == 0:
-            if clogged:
-                self.blocked_counter += 1
-            else:
-                self.blocked_counter = 0
-
-            if self.blocked_counter >= self.escape_trigger_cycles:
-                self.start_escape(sector_clearance)
-        else:
-            if not clogged:
-                self.blocked_counter = 0
-
-        if self.fusion_critical_stop and not self.hazard_escape_active:
-            self.start_hazard_escape(sector_clearance)
-
-        if self.hazard_escape_active:
-            cmd = self.run_hazard_escape(dt)
-            self.cmd_pub.publish(cmd)
-
-            if self.debug_log:
-                self.get_logger().warn(
-                    f'[HAZARD ESCAPE] turned={self.hazard_escape_accum_rad:.2f}/{self.hazard_escape_target_rad:.2f} '
-                    f'v={cmd.linear.x:.2f} w={cmd.angular.z:.2f}'
-                )
+        if self.fusion_critical_stop or self.fusion_speed_limit <= 0:
+            self.publish_stop('fusion_stop')
             return
-
-        if self.mode == 'escape':
-            cmd = self.run_escape(dt)
-            self.cmd_pub.publish(cmd)
-
-            if self.debug_log:
-                self.get_logger().info(
-                    f'[ESCAPE] turned={self.escape_accum_rad:.2f}/{self.escape_target_rad:.2f} '
-                    f'v={cmd.linear.x:.2f} w={cmd.angular.z:.2f}'
-                )
+        if front_min <= self.front_stop_dist:
+            self.publish_stop(f'front_stop front_min={front_min:.2f}')
+            return
+        hist = [h + p for h, p in zip(hist, self.fusion_penalties)]
+        open_mask = [known and h < self.hist_threshold
+                     for known, h in zip(self.current_observed_sectors, hist)]
+        valleys = self.find_open_valleys(open_mask)
+        open_fraction = sum(open_mask) / len(open_mask)
+        if not valleys:
+            self.publish_stop('no_observed_open_valley')
             return
 
         fusion_urgency = self.compute_fusion_urgency()
@@ -305,8 +381,8 @@ class VFHObstacleAvoidance(Node):
             if fusion_urgency > 0.0:
                 cmd.linear.x *= max(0.25, 1.0 - 0.45 * fusion_urgency)
 
-            if cmd.linear.x > 0.0:
-                cmd.linear.x = max(self.min_speed, cmd.linear.x)
+            # Never raise a slowdown/limit result back to a positive floor.
+            cmd.linear.x = self.clamp(cmd.linear.x, 0.0, self.forward_speed)
 
         if (front_min < self.hard_turn_dist or fusion_urgency > 0.65) and abs(cmd.angular.z) > 0.7 * self.max_yaw_rate:
             cmd.linear.x = min(cmd.linear.x, 0.05)
@@ -320,8 +396,8 @@ class VFHObstacleAvoidance(Node):
 
         if self.debug_log:
             self.get_logger().info(
-                f'[NORMAL] front_min={front_min:.2f} '
-                f'open_frac={open_fraction:.2f} '
+                f'[NORMAL] front_min={front_min:.2f} observed_front={observed_front_min:.2f} '
+                f'open_frac={open_fraction:.2f} observed_sectors={sum(self.current_observed_sectors)}/{self.num_sectors} '
                 f'blocked_ctr={self.blocked_counter} '
                 f'target_sector={target_sector} '
                 f'target_angle={target_angle:.2f} '
@@ -334,107 +410,23 @@ class VFHObstacleAvoidance(Node):
                 f'valleys={valleys}'
             )
 
-    # ---------------- Escape logic ----------------
-    def start_escape(self, sector_clearance: List[float]):
-        self.mode = 'escape'
-        self.blocked_counter = 0
-        self.escape_accum_rad = 0.0
-
-        left_clear = sum(sector_clearance[self.center_sector + 1:]) if self.center_sector + 1 < self.num_sectors else 0.0
-        right_clear = sum(sector_clearance[:self.center_sector]) if self.center_sector > 0 else 0.0
-
-        self.escape_turn_dir = 1.0 if left_clear >= right_clear else -1.0
-
-        self.get_logger().warn(
-            f'Entering ESCAPE mode: turning {"left" if self.escape_turn_dir > 0 else "right"} '
-            f'for {self.escape_turn_angle_deg:.1f} deg'
-        )
-
-    def run_escape(self, dt: float) -> Twist:
-        cmd = Twist()
-
-        remaining = self.escape_target_rad - self.escape_accum_rad
-        if remaining <= 0.0:
-            self.finish_escape()
-            return Twist()
-
-        turn_mag = self.escape_turn_rate
-        if remaining < math.radians(40.0):
-            turn_mag = max(0.35, self.escape_turn_rate * 0.55)
-
-        cmd.linear.x = 0.0
-        cmd.angular.z = self.escape_turn_dir * turn_mag
-
-        self.escape_accum_rad += abs(cmd.angular.z) * dt
-        self.prev_cmd_w = cmd.angular.z
-        self.last_turn_sign = 1.0 if cmd.angular.z > 0.0 else -1.0
-
-        if self.escape_accum_rad >= self.escape_target_rad:
-            self.finish_escape()
-
-        return cmd
-
-    def finish_escape(self):
-        self.mode = 'normal'
-        self.escape_accum_rad = 0.0
-        self.escape_holdoff_counter = self.escape_holdoff_cycles
-        self.prev_target_angle = 0.0
+    def publish_stop(self, reason):
         self.prev_cmd_w = 0.0
-        self.get_logger().warn('Escape complete, returning to NORMAL mode.')
+        self.prev_target_angle = 0.0
+        self.mode = 'normal'
+        self.cmd_pub.publish(Twist())
+        if reason != getattr(self, '_last_stop_reason', None):
+            self.get_logger().warn(f'[STOP] {reason}')
+        self._last_stop_reason = reason
 
-    # ---------------- Hazard escape logic ----------------
-    def start_hazard_escape(self, sector_clearance: List[float]):
-        self.hazard_escape_active = True
-        self.hazard_escape_accum_rad = 0.0
-
-        left_clear = sum(sector_clearance[self.center_sector + 1:]) if self.center_sector + 1 < self.num_sectors else 0.0
-        right_clear = sum(sector_clearance[:self.center_sector]) if self.center_sector > 0 else 0.0
-
-        self.hazard_escape_turn_dir = 1.0 if left_clear >= right_clear else -1.0
-
-        self.get_logger().warn(
-            f'Hazard escape: turning {"left" if self.hazard_escape_turn_dir > 0 else "right"} '
-            f'for {self.hazard_escape_angle_deg:.1f} deg'
-        )
-
-    def run_hazard_escape(self, dt: float) -> Twist:
-        cmd = Twist()
-
-        remaining = self.hazard_escape_target_rad - self.hazard_escape_accum_rad
-        if remaining <= 0.0:
-            self.hazard_escape_active = False
-            return Twist()
-
-        turn_mag = self.hazard_escape_turn_rate
-        if remaining < math.radians(35.0):
-            turn_mag = max(0.40, self.hazard_escape_turn_rate * 0.60)
-
-        cmd.linear.x = 0.0
-        cmd.angular.z = self.hazard_escape_turn_dir * turn_mag
-
-        self.hazard_escape_accum_rad += abs(cmd.angular.z) * dt
-        self.prev_cmd_w = cmd.angular.z
-        self.last_turn_sign = 1.0 if cmd.angular.z > 0.0 else -1.0
-
-        if self.hazard_escape_accum_rad >= self.hazard_escape_target_rad:
-            self.hazard_escape_active = False
-
-        return cmd
-
-    # ---------------- Helpers ----------------
-    def compute_dt(self, msg: LaserScan) -> float:
-        current_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
-
-        if self.last_scan_stamp is None:
-            self.last_scan_stamp = current_time
-            return 0.1
-
-        dt = current_time - self.last_scan_stamp
-        self.last_scan_stamp = current_time
-
-        if dt <= 0.0 or dt > 1.0:
-            return 0.1
-        return dt
+    def check_scan_timeout(self):
+        if (self.last_scan_receipt is None
+                or time.monotonic() - self.last_scan_receipt > self.scan_timeout_sec):
+            self.scan_healthy = False
+            self.scan_history.clear()
+            self.publish_stop('scan_timeout')
+        elif not self.scan_healthy:
+            self.publish_stop(self.scan_fault)
 
     def compute_fusion_urgency(self) -> float:
         penalty_peak = max(self.fusion_penalties) if self.fusion_penalties else 0.0
@@ -451,6 +443,7 @@ class VFHObstacleAvoidance(Node):
     def build_histogram(self, scan: LaserScan) -> Tuple[List[float], List[float], float]:
         hist = [0.0] * self.num_sectors
         sector_clearance = [self.max_range_clip] * self.num_sectors
+        self.current_observed_sectors = [False] * self.num_sectors
 
         half_fov = self.total_hist_fov_rad / 2.0
         inflate = self.robot_radius + self.safety_margin
@@ -463,12 +456,10 @@ class VFHObstacleAvoidance(Node):
             if angle < -half_fov or angle > half_fov:
                 continue
 
-            if r is None or math.isnan(r) or r <= 0.0:
+            if (not math.isfinite(r) or r <= 0.0
+                    or not scan.range_min <= r <= scan.range_max):
                 continue
-            if math.isinf(r):
-                r = self.max_range_clip
-            else:
-                r = min(r, self.max_range_clip)
+            r = min(r, self.max_range_clip)
 
             if abs(angle) <= math.radians(15.0):
                 front_min = min(front_min, r)
@@ -477,6 +468,7 @@ class VFHObstacleAvoidance(Node):
             if sector < 0 or sector >= self.num_sectors:
                 continue
 
+            self.current_observed_sectors[sector] = True
             sector_clearance[sector] = min(sector_clearance[sector], r)
 
             if r < self.obstacle_influence_dist:

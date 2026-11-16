@@ -6,11 +6,15 @@ This reference deliberately separates current implementation from the production
 
 Solid arrows in the current diagram are **Verified from code** host-side connections. Dashed arrows are missing, external, physical, or otherwise not verifiable from this repository. The diagram does not assert that all shown executables are launched together; no complete bring-up exists.
 
+## LiDAR-only experimental launcher
+
+**Verified from code** — `start_lidar_only.sh` now opens six tmux panes and starts the existing motor bridge on normal invocation, after startup checks; invocation is the user-requested operator enable. It excludes camera/fusion/alternative controllers and preserves the scan guards and bounded profile. The user-selected unchanged original v4 firmware is identified and checked stopped with AUTO disabled before the bridge starts; ARM is not sent. v4 per-direction US telemetry is adapted and DBG motor status is published. Navigation candidates use LiDAR only; original onboard sonar vetoes remain active. Default v4 emits no odometry and has no latched STOP. `stop_lidar_only.sh` provides a no-flags stop command. [Usage and evidence limits](../verification/lidar_only_launcher.md). It is not the complete production bring-up or physical autonomous-enable/E-stop system described below.
+
 ## Current repository architecture
 
 **Verified from code:** The Unitree ROS wrapper publishes `PointCloud2` on `/unilidar/cloud`, IMU data on `/unilidar/imu`, a dynamic initial-IMU-to-IMU transform, and a static IMU-to-LiDAR transform. It does not publish `LaserScan`. `gap_follow`, `vfh_obstacle_avoidance`, `vfh_with_esp_fusion`, and the LiDAR logger subscribe to `/scan`, for which no checked-in producer exists. The exact sensor contract and its hardware limitations are recorded in [`../interfaces/unitree_driver_tf_contract.md`](../interfaces/unitree_driver_tf_contract.md).
 
-**Verified from code:** `cmd_vel_to_serial` receives `/cmd_vel`, sends an ASCII `CMD` line, and republishes parsed odometry, ToF summary, and ultrasonic data from its serial boundary. The ToF and ultrasonic processors feed `fusion_node`; the standalone VFH uses `/scan` plus fusion penalties/speed/stop and publishes `/cmd_vel_vfh`. Camera following publishes `/cmd_vel_camera`. `safety_mux_node` selects between those two candidates and publishes `/cmd_vel`.
+**Verified from code:** `cmd_vel_to_serial` receives `/cmd_vel`, sends an ASCII `CMD` line, and republishes parsed odometry, ToF summary, and ultrasonic data from its serial boundary. The ToF and ultrasonic processors feed `fusion_node`; the standalone VFH publishes `/cmd_vel_vfh` and now defaults to LiDAR-only operation (`use_fusion=false`). Camera following publishes `/cmd_vel_camera`; `safety_mux_node` publishes final `/cmd_vel`, defaults to `lidar_only_mode=true`, ignores camera/fusion influence in that mode, and independently guards scan validity and freshness. Optional fusion/camera arbitration requires explicit configuration. See [the stationary validation profile](../verification/lidar_only_stationary.md).
 
 **Verified from code:** `gap_follow` and `vfh_with_esp_fusion` also default to publishing `/cmd_vel` directly. They bypass the mux and can conflict with it if launched simultaneously. The ESP-fusion alternative also defaults to the same serial device as the ESP bridge while using a different `STATE|...` receive contract.
 
@@ -58,7 +62,7 @@ Current limitations relevant to integration include:
 - **Verified from code:** multiple executable modes can own `/cmd_vel`;
 - **Verified from code:** the only launch starts the Unitree driver headlessly by default and can add RViz explicitly; it does not start `/scan`, navigation, fusion, serial actuation, or motors;
 - **Potential issue:** missing/stale ToF, fusion, and other safety inputs can be retained or interpreted permissively in parts of the current graph; and
-- **Potential issue:** invalid-but-nonempty scan behavior, critical-stop/escape interaction, and serial failure behavior require correction and verification in later phases.
+- **Verified from code:** the LiDAR-only correction rejects invalid/stale scans in VFH and mux, keeps unknown sectors closed, removes the speed floor and open-loop escape, bounds serial requests, and latches serial faults. Automated software results are recorded separately from unverified physical behavior in [the stationary validation record](../verification/lidar_only_stationary.md).
 
 These findings do not prove that uninspected hardware lacks independent protection.
 

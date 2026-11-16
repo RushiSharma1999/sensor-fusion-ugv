@@ -1,0 +1,112 @@
+[INFO] [1793574743.422813062] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.62 open_frac=0.33 observed_sectors=16/33 blocked_ctr=0 target_sector=2 target_angle=-1.18 fusion_urgency=0.00 v=0.02 w=-0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(0, 2)]        
+[WARN] [1793574743.506624051] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[INFO] [1793574743.591154773] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.62 open_frac=0.24 observed_sectors=18/33 blocked_ctr=0 target_sector=2 target_angle=-1.18 fusion_urgency=0.00 v=0.01 w=-0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(0, 4)]        
+[WARN] [1793574743.673160878] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[INFO] [1793574743.757759762] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.64 open_frac=0.24 observed_sectors=16/33 blocked_ctr=0 target_sector=30 target_angle=1.18 fusion_urgency=0.00 v=0.01 w=0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(30, 32)]       
+[WARN] [1793574743.841765253] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574743.925342891] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574744.009779594] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[INFO] [1793574744.092916580] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.63 open_frac=0.27 observed_sectors=19/33 blocked_ctr=0 target_sector=27 target_angle=0.93 fusion_urgency=0.00 v=0.01 w=0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(23, 25), (27, 31)]                    
+[WARN] [1793574744.176322406] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574744.258962834] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[WARN] [1793574744.343664442] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574744.428044311] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574744.511679936] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574744.594488305] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[WARN] [1793574744.679012243] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574744.762463638] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574744.846649039] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574744.929943693] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574745.014673397] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[INFO] [1793574745.097021721] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.65 open_frac=0.18 observed_sectors=15/33 blocked_ctr=0 target_sector=3 target_angle=-1.10 fusion_urgency=0.00 v=0.01 w=-0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(3, 5)]        
+[WARN] [1793574745.180171284] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[WARN] [1793574745.264543283] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574745.348482660] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574745.432288434] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574745.514805371] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[WARN] [1793574745.599749354] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574745.683643386] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574745.767098750] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574745.849390465] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574745.934182603] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[INFO] [1793574746.018647116] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.63 observed_front=0.65 open_frac=0.12 observed_sectors=15/33 blocked_ctr=0 target_sector=3 target_angle=-1.10 fusion_urgency=0.00 v=0.02 w=-0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(3, 5)]        
+[WARN] [1793574746.100939951] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[WARN] [1793574746.185448753] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574746.269230335] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574746.351549635] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574746.436034245] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[INFO] [1793574746.524104846] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.63 observed_front=0.64 open_frac=0.27 observed_sectors=18/33 blocked_ctr=0 target_sector=23 target_angle=0.59 fusion_urgency=0.00 v=0.02 w=0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(23, 25), (27, 32)]                    
+[WARN] [1793574746.605846561] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574746.689240131] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574746.774880103] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574746.856551128] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[INFO] [1793574746.939612433] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.64 open_frac=0.15 observed_sectors=17/33 blocked_ctr=0 target_sector=3 target_angle=-1.10 fusion_urgency=0.00 v=0.01 w=-0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(1, 5)]        
+[WARN] [1793574747.023051445] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[WARN] [1793574747.107653274] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574747.190874296] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574747.274140632] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574747.356743076] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[INFO] [1793574747.441470349] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.64 open_frac=0.21 observed_sectors=16/33 blocked_ctr=0 target_sector=27 target_angle=0.93 fusion_urgency=0.00 v=0.02 w=0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(27, 29)]       
+[INFO] [1793574747.525864205] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.63 open_frac=0.24 observed_sectors=19/33 blocked_ctr=0 target_sector=26 target_angle=0.85 fusion_urgency=0.00 v=0.01 w=0.23 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(1, 3), (23, 26)]                      
+[WARN] [1793574747.608934855] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574747.692648755] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574747.776263229] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[INFO] [1793574747.859376888] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.65 open_frac=0.15 observed_sectors=16/33 blocked_ctr=0 target_sector=3 target_angle=-1.10 fusion_urgency=0.00 v=0.01 w=-0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(1, 5)]        
+[WARN] [1793574747.943559889] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[WARN] [1793574748.028170200] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574748.111635709] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574748.195514319] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574748.277702287] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[INFO] [1793574748.362724034] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.64 open_frac=0.24 observed_sectors=17/33 blocked_ctr=0 target_sector=26 target_angle=0.85 fusion_urgency=0.00 v=0.02 w=0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(25, 29)]       
+[INFO] [1793574748.447484941] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.63 open_frac=0.21 observed_sectors=20/33 blocked_ctr=0 target_sector=3 target_angle=-1.10 fusion_urgency=0.00 v=0.02 w=-0.05 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(1, 3)]        
+[INFO] [1793574748.528940696] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.63 observed_front=0.65 open_frac=0.27 observed_sectors=15/33 blocked_ctr=0 target_sector=28 target_angle=1.02 fusion_urgency=0.00 v=0.02 w=0.11 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(28, 30)]       
+[WARN] [1793574748.615159821] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574748.697875229] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574748.781494855] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574748.863914127] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[INFO] [1793574748.948885792] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.61 observed_front=0.61 open_frac=0.30 observed_sectors=16/33 blocked_ctr=0 target_sector=26 target_angle=0.85 fusion_urgency=0.00 v=0.01 w=0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(26, 30)]       
+[INFO] [1793574749.032796786] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.61 observed_front=0.65 open_frac=0.24 observed_sectors=18/33 blocked_ctr=0 target_sector=23 target_angle=0.59 fusion_urgency=0.00 v=0.01 w=0.23 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(23, 25)]       
+[WARN] [1793574749.116285497] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574749.199023402] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[WARN] [1793574749.283891704] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574749.366989460] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[INFO] [1793574749.450879142] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.64 open_frac=0.27 observed_sectors=16/33 blocked_ctr=0 target_sector=3 target_angle=-1.10 fusion_urgency=0.00 v=0.01 w=-0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(2, 4)]        
+[INFO] [1793574749.535251014] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.65 open_frac=0.36 observed_sectors=16/33 blocked_ctr=0 target_sector=3 target_angle=-1.10 fusion_urgency=0.00 v=0.01 w=-0.23 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(3, 5), (23, 25), (29, 31)]           
+[WARN] [1793574749.618195741] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574749.702217139] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574749.787696948] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[WARN] [1793574749.868056864] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574749.952582757] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[INFO] [1793574750.036765472] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.62 open_frac=0.24 observed_sectors=17/33 blocked_ctr=0 target_sector=3 target_angle=-1.10 fusion_urgency=0.00 v=0.01 w=-0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(1, 5)]        
+[WARN] [1793574750.118134378] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[WARN] [1793574750.203104444] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574750.286868555] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574750.369711455] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574750.455462568] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[INFO] [1793574750.540344567] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.62 open_frac=0.24 observed_sectors=20/33 blocked_ctr=0 target_sector=27 target_angle=0.93 fusion_urgency=0.00 v=0.01 w=0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(27, 29)]       
+[WARN] [1793574750.623283566] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574750.705580851] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[WARN] [1793574750.790255613] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574750.874249330] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574750.961021496] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574751.038754490] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[INFO] [1793574751.125765575] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.64 open_frac=0.21 observed_sectors=16/33 blocked_ctr=0 target_sector=28 target_angle=1.02 fusion_urgency=0.00 v=0.01 w=0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(28, 30)]       
+[WARN] [1793574751.210309933] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574751.293379945] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574751.376126139] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574751.459846537] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[INFO] [1793574751.544055174] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.64 open_frac=0.18 observed_sectors=16/33 blocked_ctr=0 target_sector=3 target_angle=-1.10 fusion_urgency=0.00 v=0.01 w=-0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(1, 5)]        
+[WARN] [1793574751.626225671] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[WARN] [1793574751.710360418] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574751.795685950] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574751.879423405] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574751.962319140] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[INFO] [1793574752.045510915] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.64 open_frac=0.24 observed_sectors=16/33 blocked_ctr=0 target_sector=22 target_angle=0.51 fusion_urgency=0.00 v=0.01 w=0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(22, 24), (28, 30)]                    
+[WARN] [1793574752.129685631] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574752.214863608] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[WARN] [1793574752.297282913] [vfh_obstacle_avoidance]: [STOP] no_observed_open_valley     
+[INFO] [1793574752.381152468] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.63 observed_front=0.63 open_frac=0.30 observed_sectors=19/33 blocked_ctr=0 target_sector=26 target_angle=0.85 fusion_urgency=0.00 v=0.02 w=0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(25, 29)]       
+[INFO] [1793574752.464627484] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.63 observed_front=0.64 open_frac=0.21 observed_sectors=17/33 blocked_ctr=0 target_sector=3 target_angle=-1.10 fusion_urgency=0.00 v=0.02 w=-0.05 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(1, 5)]        
+[WARN] [1793574752.548385004] [vfh_obstacle_avoidance]: [STOP] no_finite_front_returns     
+[INFO] [1793574752.629707382] [vfh_obstacle_avoidance]: [NORMAL] front_min=0.62 observed_front=0.62 open_frac=0.30 observed_sectors=16/33 blocked_ctr=0 target_sector=26 target_angle=0.85 fusion_urgency=0.00 v=0.02 w=0.14 fusion_stop=0 fusion_speed=1.00 penalty_max=0.00 valleys=[(23, 27), (29, 31)]                    
+

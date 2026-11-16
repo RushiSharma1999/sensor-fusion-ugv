@@ -1,0 +1,6 @@
+{
+  "start_lidar_only.sh": "ede0240c439c1047558f8281e6ea2715fbe6e5b9e126c765fbe05db109b44c0f",
+  "scripts/esp32_prepare_lidar.py": "f93d112736e0f01a16396137e9b5998df382f55891d137d493f175d045633881",
+  "tests/lidar_only/test_esp32_prepare.py": "51c804a5056da972bd2ebecadef4e52ad15532e186757af729da423f0ed4c5e1",
+  "tests/lidar_only/test_launcher.py": "4460546df1f1709ff4bef381b93ee17d13e5ee0dbb7193de396bf0adb78d3c43"
+}
