@@ -26,6 +26,7 @@ The calibration assertions must describe measurements, not merely enable flags.
 | `lidar_yaw` | `0.0` | rad | Scan-to-geometry yaw, positive CCW. Used in polygon/configured mode, or explicitly with align_legacy_heading in the fallback. The latter leaves the origin at the LiDAR; it is not a measured base_link transform. |
 | `transform_timeout_sec` | `0.1` | s | Maximum nonstatic TF stamp difference from scan stamp. Missing TF stops. |
 | `enable_curves` | `false` | bool | Requires polygon, valid mount and motion_model_calibrated; false preserves straight/spin fallback. |
+| `preview_curves` | `false` | bool | Check signed curve candidates for the log while keeping them out of selection. Mutually exclusive with enable_curves. The launcher exposes this only in enhanced dry-run. See the [Jetson commissioning procedure](curve_commissioning.md). |
 | `curve_linear_speed_cap` | `0.05` | requested m/s | Upper bound for simultaneous v/w output; >0 to 0.05. Straight-to-curve transitions brake before introducing angular output above this cap. Use 0.02 for initial measured-geometry commissioning. |
 | `curve_max_yaw_rate` | `0.20` | requested rad/s | Largest curved candidate yaw; 0.06 to 0.25. Initial commissioning can select 0.06. Stationary turns retain the profile's 0.25 limit; their angular output brakes before adding translation. |
 | `motion_model_calibrated` | `false` | bool | Operator assertion that nominal gains and absolute errors bound measured motion over the horizon. |

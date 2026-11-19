@@ -300,23 +300,68 @@ class RosIntegrationTests(unittest.TestCase):
             Parameter('enable_curves', value=True),
             Parameter('curve_linear_speed_cap', value=.02),
             Parameter('curve_max_yaw_rate', value=.06)])
-        self.spin(1.2, lambda: self.pub.publish(self.scan()))
-        self.received.clear()
-        node.enhanced.core.side = 1
+        core = node.enhanced.core
+        for side in (1, -1):
+            self.assertTrue(self.spin(
+                6., lambda: self.pub.publish(self.scan()),
+                until=lambda: core.previous.v == .05 and core.previous.w == 0 and core.side == 0))
+            self.received.clear()
 
-        def publish():
-            msg = self.scan()
-            for i in range(177, 184):
-                msg.ranges[i] = .95
-            self.pub.publish(msg)
+            def publish():
+                msg = self.scan()
+                for i in range(177, 184):
+                    msg.ranges[i] = .95
+                # Mirror an off-axis obstacle outside the braking straight sweep.
+                for offset in range(41, 46):
+                    msg.ranges[180 - side * offset] = math.hypot(.53, .50)
+                self.pub.publish(msg)
 
-        self.spin(1.8, publish)
-        curves = [m for _, m in self.received if m.linear.x > 0 and m.angular.z != 0]
-        self.assertTrue(curves)
-        self.assertTrue(all(m.linear.x <= .02 and abs(m.angular.z) <= .06 for m in curves))
+            self.assertTrue(self.spin(6., publish, until=lambda: any(
+                m.linear.x > 0 and m.angular.z * side > 0 for _, m in self.received)))
+            curves = [m for _, m in self.received if m.linear.x > 0 and m.angular.z]
+            self.assertTrue(all(m.linear.x <= .02 and 0 < m.angular.z * side <= .06
+                                for m in curves))
         self.spin(.2, lambda: self.pub.publish(self.scan(.25)))
         self.assertEqual(self.received[-1][1].linear.x, 0)
         self.assertEqual(self.received[-1][1].angular.z, 0)
+
+    def test_heading_preview_logs_signed_checks_with_only_zero_serial_writes(self):
+        profile = (Path(__file__).resolve().parents[1]
+                   / 'ws/src/vfh_pkg/config/heading_marker.yaml')
+        node = self.controller(cli_args=[
+            '--ros-args', '--params-file', str(profile), '-p', 'preview_curves:=true',
+            '-p', 'curve_linear_speed_cap:=0.02', '-p', 'curve_max_yaw_rate:=0.06'])
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'ws/src/esp_bridge/test'))
+        from test_serial_safety import SerialPort
+        with patch('esp_bridge.cmd_vel_to_serial.serial.Serial', SerialPort):
+            bridge = CmdVelToSerial(
+                cli_args=['--ros-args', '--params-file', str(profile)],
+                parameter_overrides=[Parameter('dry_run', value=True),
+                                     Parameter('cmd_vel_topic', value='/test_motion_cmd')])
+        self.nodes.append(bridge)
+        self.executor.add_node(bridge)
+        self.assertEqual(bridge.ser.written, ['STOP\n'])
+        bridge.ser.incoming = b'ACK STOP\n'
+        self.assertTrue(self.spin(6., lambda: self.pub.publish(self.scan()),
+                                  until=lambda: bridge.last_twist.linear.x > 0))
+        node.enhanced.last_log = -math.inf
+        with patch.object(node, 'get_logger') as logger:
+            node.enhanced.tick()
+        record = json.loads(logger.return_value.info.call_args.args[0])
+        self.assertTrue(record['preview_curves'])
+        self.assertEqual({(r['w'], r['result']) for r in record['curve_checks']},
+                         {(-.06, 'clear'), (.06, 'clear')})
+        self.assertFalse(node.enhanced.cfg.enable_curves)
+        self.assertFalse(node.enhanced.cfg.mounting_calibrated)
+        self.assertFalse(node.enhanced.cfg.motion_model_calibrated)
+        self.assertTrue(all(m.linear.x == 0 or m.angular.z == 0 for _, m in self.received))
+        bridge.on_cmd_timer()
+        self.assertEqual(bridge.ser.written[-1], 'CMD v 0.000 w 0.000\n')
+        bridge.ser.ack_on_stop = True
+        bridge.close()
+        self.assertEqual(bridge.ser.written[-1], 'STOP\n')
+        self.assertEqual({s for s in bridge.ser.written if s.startswith('CMD ')},
+                         {'CMD v 0.000 w 0.000\n'})
 
     def test_preserved_baseline_still_publishes_and_has_profile_limits(self):
         node = self.controller('baseline')

@@ -11,6 +11,8 @@ class LauncherTests(unittest.TestCase):
     def test_invalid_options_fail_before_ros_or_hardware(self):
         for args in (['--moters'], ['--behavior', 'unknown'], ['--speed-profile', 'fast'],
                      ['--behavior', 'baseline', '--speed-profile', 'open_space'],
+                     ['--preview-curves', '--behavior', 'baseline'],
+                     ['--preview-curves', '--behavior', 'enhanced', '--motors'],
                      ['--behavior', 'enhanced', '--params', 'relative.yaml']):
             result = subprocess.run(['bash', str(ROOT / 'run_cloud36_test.sh'), *args],
                                     capture_output=True, text=True, timeout=5)
@@ -33,6 +35,8 @@ class LauncherTests(unittest.TestCase):
         self.assertLess(commands[1].index('"${bridge_params[@]}"'),
                         commands[1].index('-p dry_run:="$dry"'))
         self.assertIn('cloud_scan_num:=36', body)
+        self.assertIn('-p preview_curves:="$preview_curves"', body)
+        self.assertIn('-p enable_curves:=false', body)
         self.assertIn('exec bash "$root/run_continuous_bot.sh" "$@"',
                       (ROOT / 'run_cloud36_test.sh').read_text())
 

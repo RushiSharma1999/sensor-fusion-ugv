@@ -591,6 +591,87 @@ class DecisionTests(unittest.TestCase):
                 self.assertEqual(result.command.v, 0)
             self.assertGreater(result.command.w, 0)
 
+    def test_both_caps_hold_on_the_wire_when_a_tick_crosses_both(self):
+        cfg = polygon_config(enable_curves=True, motion_model_calibrated=True,
+                             curve_linear_speed_cap=.0207, curve_max_yaw_rate=.0617,
+                             angular_accel=3.0)
+        for sign in (-1, 1):
+            for initial, target in ((Command(.05, 0), Command(0, sign * .25)),
+                                    (Command(.020, sign * .06), Command(.05, 0)),
+                                    (Command(.013, sign * .06), Command(0, sign * .25))):
+                core = MotionController(cfg)
+                release(core)
+                core.previous = initial
+                core.last_tick = 100.96
+                now = 101.0
+                core.observe(scan(now), now, round(now * 1e9))
+                core.cached_candidates = [(target, core.check(target))]
+                core.cached_sequence = core.sequence
+                with patch.object(core, 'check', wraps=core.check) as checks:
+                    output = core.tick(now, round(now * 1e9)).command
+                wire = Command(float(f'{output.v:.3f}'), float(f'{output.w:.3f}'))
+                self.assertEqual(checks.call_args.args, (wire,))
+                self.assertEqual(output, wire)
+                if initial.w == 0:
+                    self.assertGreater(output.v, cfg.curve_linear_speed_cap)
+                    self.assertEqual(output.w, 0)
+                else:
+                    self.assertGreater(wire.v, 0)
+                    self.assertGreater(wire.w * sign, 0)
+                    self.assertLessEqual(wire.v, cfg.curve_linear_speed_cap)
+                    self.assertLessEqual(abs(wire.w), cfg.curve_max_yaw_rate)
+
+    def test_preview_checks_both_directions_without_selecting_either(self):
+        cfg = Config(preview_curves=True, curve_linear_speed_cap=.02, curve_max_yaw_rate=.06)
+        core = MotionController(cfg)
+        baseline = MotionController(replace(cfg, preview_curves=False))
+        for i in range(16):
+            t = 100 + .12 * i
+            msg = obstacle(scan(t), .95, 0, 3)
+            d = feed(core, t, msg)
+            normal = feed(baseline, t, msg)
+            self.assertEqual((d.command, d.selected), (normal.command, normal.selected))
+            self.assertFalse(any(m.v and m.w for m, _ in core.cached_candidates))
+        self.assertEqual({(r['w'], r['result']) for r in d.curve_checks},
+                         {(-.06, 'clear'), (.06, 'clear')})
+        self.assertEqual(normal.curve_checks, ())
+        stopped = feed(core, 102, obstacle(scan(102), .25, 0))
+        self.assertEqual(stopped.curve_checks, ())
+        self.assertEqual(stopped.command, Command())
+        with self.assertRaises(ValueError):
+            polygon_config(enable_curves=True, motion_model_calibrated=True, preview_curves=True)
+
+    def test_mirrored_approaches_select_curves_then_stop_on_loss_or_hazard(self):
+        cfg = polygon_config(enable_curves=True, motion_model_calibrated=True,
+                             curve_linear_speed_cap=.02, curve_max_yaw_rate=.06)
+        for side, fault in ((1, 'coverage_unknown'), (-1, 'scan_timeout_or_clock_jump'),
+                            (1, 'observed_hazard_inside_footprint_envelope')):
+            core = MotionController(cfg)
+            for i in range(32):
+                t = 100 + .04 * i
+                d = feed(core, t)
+            self.assertEqual(d.command, Command(.05, 0))
+            for i in range(12):
+                t += .04
+                msg = obstacle(obstacle(scan(t), .95, 0, 3), .55, -.38 * side, 2)
+                d = feed(core, t, msg)
+                if d.command.w:
+                    self.assertGreater(d.command.w * side, 0)
+                    self.assertLessEqual(d.command.v, .02)
+                    self.assertLessEqual(abs(d.command.w), .06)
+            self.assertEqual(d.reason, 'curve')
+            self.assertGreater(d.command.v, 0)
+            if fault == 'scan_timeout_or_clock_jump':
+                d = core.tick(t + .36, round((t + .36) * 1e9))
+            else:
+                msg = scan(t + .04)
+                if fault == 'coverage_unknown':
+                    msg.ranges[90:105] = [math.inf] * 15
+                else:
+                    obstacle(msg, .25, 0)
+                d = feed(core, t + .04, msg)
+            self.assertEqual((d.reason, d.command), (fault, Command()))
+
     def test_normal_straight_to_turn_brakes_translation_before_rotating(self):
         core = MotionController()
         release(core)

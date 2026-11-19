@@ -32,6 +32,7 @@ class Config:
     lidar_yaw: float = 0.0
     transform_timeout_sec: float = 0.10
     enable_curves: bool = False
+    preview_curves: bool = False
     curve_linear_speed_cap: float = 0.05
     curve_max_yaw_rate: float = 0.20
     motion_model_calibrated: bool = False
@@ -141,6 +142,8 @@ class Config:
         if self.enable_curves and (
                 self.geometry_mode != 'polygon' or not self.motion_model_calibrated):
             raise ValueError('Curves require polygon geometry and calibrated motion-model bounds')
+        if self.preview_curves and self.enable_curves:
+            raise ValueError('Curve preview requires enable_curves=false')
         make_footprint(
             self.geometry_mode,
             self.footprint_xy,
@@ -266,6 +269,7 @@ class Command:
 class Decision:
     command: Command = field(default_factory=Command)
     selected: Command = field(default_factory=Command)
+    curve_checks: tuple = ()
     reason: str = 'waiting_for_scan'
     state: str = 'stopped'
     raw_front: float = math.nan
@@ -343,6 +347,10 @@ class MotionController:
         self.latched = False
         self.cached_sequence = -1
         self.cached_candidates = []
+        self.curve_checks = ()
+        # Never check one velocity and then round outside the cap on the wire.
+        self.curve_wire_v = wire_resolution(0.0, config.curve_linear_speed_cap)
+        self.curve_wire_w = wire_resolution(0.0, config.curve_max_yaw_rate)
         self.check_age = 0.0
         self.metrics_sequence = -1
         self.metrics = None
@@ -449,18 +457,27 @@ class MotionController:
                              (cfg.front_slowdown_dist - cfg.front_stop_dist)))
         v = straight_cap * scale
         motions = []
+        curve_checks = []
         if not self.linear_latched and v >= 0.001:
-            motions.append(Command(v, 0.0))
-            if cfg.enable_curves:
+            straight = Command(v, 0.0)
+            motions.append((straight, self.check(straight)))
+            if cfg.enable_curves or cfg.preview_curves:
                 for w in (0.06, -0.06, 0.12, -0.12, 0.20, -0.20):
                     if abs(w) > cfg.curve_max_yaw_rate:
                         continue
                     turn_v = min(cfg.curve_linear_speed_cap, v) / \
                         (1 + 2 * abs(w) / self.limits.angular)
-                    motions.append(Command(turn_v, w))
-        motions.extend((Command(0, self.limits.angular), Command(0, -self.limits.angular),
-                        Command(0, self.limits.angular / 2), Command(0, -self.limits.angular / 2)))
-        return [(motion, self.check(motion)) for motion in motions]
+                    curve = Command(turn_v, w)
+                    checked = self.check(curve)
+                    curve_checks.append({'v': turn_v, 'w': w, 'result': checked.reason})
+                    if cfg.enable_curves:
+                        motions.append((curve, checked))
+        self.curve_checks = tuple(curve_checks)
+        for yaw in (self.limits.angular, -self.limits.angular,
+                    self.limits.angular / 2, -self.limits.angular / 2):
+            turn = Command(0, yaw)
+            motions.append((turn, self.check(turn)))
+        return motions
 
     def score(self, item):
         motion, checked = item
@@ -579,6 +596,7 @@ class MotionController:
         if scan.sequence != self.cached_sequence:
             self.cached_candidates = self.candidates(path, current)
             self.cached_sequence = scan.sequence
+        d.curve_checks = self.curve_checks
         viable = [item for item in self.cached_candidates if item[1].usable
                   and (not self.linear_latched or item[0].v == 0)]
         # Perception-space progress evidence only. Ignore tiny range improvements
@@ -655,18 +673,17 @@ class MotionController:
             limited = Command(min(self.conservative_speed, limited.v), limited.w)
         preparing_curve = False
         if cfg.enable_curves and limited.v > 0 and limited.w:
-            if abs(limited.w) > cfg.curve_max_yaw_rate:
-                if self.previous.v > 0 and abs(self.previous.w) <= cfg.curve_max_yaw_rate:
-                    limited = Command(limited.v, math.copysign(cfg.curve_max_yaw_rate, limited.w))
-                else:
-                    limited = Command(0.0, limited.w)
+            if self.previous.w == 0 and limited.v > self.curve_wire_v:
+                limited = Command(limited.v, 0.0)
                 preparing_curve = True
-            elif limited.v > cfg.curve_linear_speed_cap:
-                if self.previous.w == 0:
-                    limited = Command(limited.v, 0.0)
-                    preparing_curve = True
-                else:
-                    limited = Command(cfg.curve_linear_speed_cap, limited.w)
+            elif self.previous.v == 0 and abs(limited.w) > self.curve_wire_w:
+                limited = Command(0.0, limited.w)
+                preparing_curve = True
+            else:
+                capped = Command(min(limited.v, self.curve_wire_v),
+                                 max(-self.curve_wire_w, min(self.curve_wire_w, limited.w)))
+                preparing_curve = capped != limited
+                limited = capped
         braking_for_turn = False
         if not cfg.enable_curves and limited.v > 0 and limited.w != 0:
             if self.previous.v > 0 and self.previous.w == 0:

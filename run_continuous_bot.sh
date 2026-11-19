@@ -19,14 +19,16 @@ shift
 mode=--dry-run
 behavior=baseline
 speed_profile=conservative
+preview_curves=false
 params=''
 while (($#)); do
     case $1 in
         --dry-run|--motors) mode=$1; shift;;
+        --preview-curves) preview_curves=true; shift;;
         --behavior) behavior=${2:?Missing behavior}; shift 2;;
         --speed-profile) speed_profile=${2:?Missing speed profile}; shift 2;;
         --params) params=${2:?Missing absolute ROS parameter file}; shift 2;;
-        *) echo 'Usage: bash run_cloud36_test.sh [--dry-run|--motors|--stop] [--behavior baseline|enhanced] [--speed-profile conservative|open_space] [--params /absolute/geometry.yaml]'; exit 2;;
+        *) echo 'Usage: bash run_cloud36_test.sh [--dry-run|--motors|--stop] [--behavior baseline|enhanced] [--preview-curves] [--speed-profile conservative|open_space] [--params /absolute/geometry.yaml]'; exit 2;;
     esac
 done
 case $behavior in baseline|enhanced) ;; *) echo 'Invalid behavior'; exit 2;; esac
@@ -35,6 +37,9 @@ if [[ $behavior == baseline && $speed_profile != conservative ]]; then
     echo 'The preserved baseline uses conservative speed. Select enhanced for open_space.'; exit 2
 fi
 case $mode in --dry-run) dry=true;; --motors) dry=false;; esac
+if [[ $preview_curves == true && ( $dry != true || $behavior != enhanced ) ]]; then
+    echo '--preview-curves requires --dry-run and --behavior enhanced'; exit 2
+fi
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 controller_params=()
 bridge_params=()
@@ -44,6 +49,12 @@ if [[ -n $params ]]; then
     fi
     controller_params=(--params-file "$params")
     bridge_params=(--params-file "$params")
+fi
+if [[ $behavior == enhanced ]]; then
+    controller_params+=(-p preview_curves:="$preview_curves")
+    if [[ $preview_curves == true ]]; then
+        controller_params+=(-p enable_curves:=false -p curve_linear_speed_cap:=0.02 -p curve_max_yaw_rate:=0.06)
+    fi
 fi
 if [[ ! -f "$root/ws/install/local_setup.bash" ]]; then
     echo "Missing build: $root/ws/install/local_setup.bash"; exit 1

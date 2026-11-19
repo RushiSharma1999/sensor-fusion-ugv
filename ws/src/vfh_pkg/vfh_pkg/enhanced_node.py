@@ -48,7 +48,7 @@ class EnhancedAvoidance:
             f'requested_limits={self.core.limits} geometry={self.cfg.geometry_mode} '
             f'align_legacy_heading={self.cfg.align_legacy_heading} '
             f'configured_lidar_yaw_rad={self.cfg.lidar_yaw:.6f} '
-            f'curves={self.cfg.enable_curves}; '
+            f'curves={self.cfg.enable_curves} preview_curves={self.cfg.preview_curves}; '
             'legacy geometry/model are unverified until measured')
 
     def mount_for(self, msg):
@@ -124,6 +124,7 @@ class EnhancedAvoidance:
             record = clean(decision)
             record.update(
                 event='motion',
+                preview_curves=self.cfg.preview_curves,
                 geometry=self.cfg.geometry_mode,
                 geometry_reference=(self.cfg.base_frame if self.cfg.geometry_mode == 'polygon'
                                     else 'lidar_origin_heading_aligned'
