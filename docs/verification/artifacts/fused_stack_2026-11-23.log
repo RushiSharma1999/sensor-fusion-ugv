@@ -1,0 +1,151 @@
+Source: 8472c0ca46462f65983876fe21bf1e9dc9bf5931
+ROS 2 Jazzy, Linux x86_64, ros:jazzy-perception Docker environment.
+Upstream pointcloud_to_laserscan jazzy commit 442b33258b3af50e2981f338e1eac3ba259f8afa, built in a separate overlay.
+ROS apt package installation failed because the ROS repository proxy was unreachable. Building the upstream package from source succeeded.
+The first expanded integration-test run had a DDS discovery race in the test observer; the test now waits for the messages before asserting.
+Both Unitree default validation failures reproduced on the unmodified port branch. This branch's validator recognizes the port's 36-packet launch override.
+
+Static and offline commands, run from the integration checkout:
+  python3 scripts/validate_ros_packages.py
+  python3 scripts/validate_unitree_driver.py
+  bash scripts/test_source_setup.sh
+  bash -n start_bot.sh
+  python3 -m unittest discover -s tests/lidar_only -p 'test_*.py'
+
+PASS: validated 10 ROS manifests, 11 source packages, Python entry points/import dependencies, Humble build-script defaults, Unitree SDK architecture/install assets, and installed launch/config/RViz resource paths.
+PASS: validated 30 Unitree defaults plus 7 measured-only TF parameters, SDK2 work-mode/timestamp restrictions, YAML-authoritative launch precedence, headless/optional-RViz launch, initial/final hardware-sample quaternion mapping, topic/frame/TF/QoS source invariants, installed resources, SDK architecture selection, and unchanged aarch64/x86_64 vendor archives.
+PASS: setup sourcing tolerates unset AMENT_TRACE_SETUP_FILES, restores nounset, and rejects a missing setup file.
+...........................................................................
+----------------------------------------------------------------------
+Ran 75 tests in 0.152s
+
+OK
+
+ROS commands with the Jazzy underlay and upstream converter overlay sourced:
+  cd ws
+  colcon build --symlink-install --executor sequential --cmake-args -DCMAKE_BUILD_TYPE=Release
+  source install/local_setup.bash
+  ros2 pkg executables unitree_lidar_ros2
+  ros2 pkg executables vfh_pkg
+  ros2 launch fusion_pkg fused_stack.launch.py --show-args
+  ros2 run unitree_lidar_ros2 unitree_lidar_main_node --ros-args -p initialize_type:=3
+  cd ..
+  python3 -m pytest -q ws/src/vfh_pkg/test/test_motion_core.py
+  python3 tests/test_fused_stack.py
+
+The invalid transport test is expected to exit 1. Runtime tests substitute a synthetic cloud and virtual serial for hardware.
+
+Starting >>> esp_bridge
+Finished <<< esp_bridge [1.45s]
+Starting >>> esp_fusion_pkg
+Finished <<< esp_fusion_pkg [1.44s]
+Starting >>> gap_follow
+Finished <<< gap_follow [1.48s]
+Starting >>> lidar_logger_pkg
+Finished <<< lidar_logger_pkg [1.41s]
+Starting >>> tof_processor_pkg
+Finished <<< tof_processor_pkg [1.47s]
+Starting >>> ultrasonic_pkg
+Finished <<< ultrasonic_pkg [1.35s]
+Starting >>> unitree_lidar_ros2
+Finished <<< unitree_lidar_ros2 [0.18s]
+Starting >>> unitree_lidar_sdk
+--- stderr: unitree_lidar_sdk
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/example_lidar_serial.cpp: In function ‘int main(int, char**)’:
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/example_lidar_serial.cpp:7:14: warning: unused parameter ‘argc’ [-Wunused-parameter]
+    7 | int main(int argc, char *argv[])
+      |          ~~~~^~~~
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/example_lidar_serial.cpp:7:26: warning: unused parameter ‘argv’ [-Wunused-parameter]
+    7 | int main(int argc, char *argv[])
+      |                    ~~~~~~^~~~~~
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/example_lidar_udp.cpp: In function ‘int main(int, char**)’:
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/example_lidar_udp.cpp:7:14: warning: unused parameter ‘argc’ [-Wunused-parameter]
+    7 | int main(int argc, char *argv[])
+      |          ~~~~^~~~
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/example_lidar_udp.cpp:7:26: warning: unused parameter ‘argv’ [-Wunused-parameter]
+    7 | int main(int argc, char *argv[])
+      |                    ~~~~~~^~~~~~
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/set_ip_address.cpp: In function ‘int main(int, char**)’:
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/set_ip_address.cpp:7:14: warning: unused parameter ‘argc’ [-Wunused-parameter]
+    7 | int main(int argc, char *argv[])
+      |          ~~~~^~~~
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/set_ip_address.cpp:7:26: warning: unused parameter ‘argv’ [-Wunused-parameter]
+    7 | int main(int argc, char *argv[])
+      |                    ~~~~~~^~~~~~
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/set_to_serial_mode.cpp: In function ‘int main(int, char**)’:
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/set_to_serial_mode.cpp:7:14: warning: unused parameter ‘argc’ [-Wunused-parameter]
+    7 | int main(int argc, char *argv[])
+      |          ~~~~^~~~
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/set_to_serial_mode.cpp:7:26: warning: unused parameter ‘argv’ [-Wunused-parameter]
+    7 | int main(int argc, char *argv[])
+      |                    ~~~~~~^~~~~~
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/set_to_udp_mode.cpp: In function ‘int main(int, char**)’:
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/set_to_udp_mode.cpp:7:14: warning: unused parameter ‘argc’ [-Wunused-parameter]
+    7 | int main(int argc, char *argv[])
+      |          ~~~~^~~~
+/workspace/sensor-fusion-ugv-lidar-fusion/ws/src/unitree_lidar_sdk/examples/set_to_udp_mode.cpp:7:26: warning: unused parameter ‘argv’ [-Wunused-parameter]
+    7 | int main(int argc, char *argv[])
+      |                    ~~~~~~^~~~~~
+---
+Finished <<< unitree_lidar_sdk [3.37s]
+Starting >>> vision_uart_pkg
+Finished <<< vision_uart_pkg [1.42s]
+Starting >>> vfh_pkg
+Finished <<< vfh_pkg [1.28s]
+Starting >>> fusion_pkg
+Finished <<< fusion_pkg [1.38s]
+
+Summary: 11 packages finished [16.4s]
+  1 package had stderr output: unitree_lidar_sdk
+unitree_lidar_ros2 unitree_lidar_main_node
+unitree_lidar_ros2 unitree_lidar_ros2_node
+vfh_pkg vfh_main_node
+vfh_pkg vfh_node
+Arguments (pass arguments as '<name>:=<value>'):
+
+    'serial_port':
+        ESP32 device path. Empty leaves the serial bridge off.
+        (default: '')
+
+    'motion_enabled':
+        Allow the mux to forward motion after its guards pass. Valid choices are: ['true', 'false']
+        (default: 'false')
+
+    'use_tof':
+        Enable and require fresh ToF features. Valid choices are: ['true', 'false']
+        (default: 'false')
+
+    'start_driver':
+        Set false when replaying an external /unilidar/cloud source. Valid choices are: ['true', 'false']
+        (default: 'true')
+
+    'cloud_scan_num':
+        Unitree cloud packet count used by the main navigation launcher.
+        (default: '36')
+
+    'lidar_ip':
+        Unitree UDP address from the main launch profile.
+        (default: '192.168.1.62')
+
+    'local_ip':
+        Existing host UDP address. Launch does not configure networking.
+        (default: '192.168.1.2')
+initialize_type_ = 3
+[ERROR] [1795474513.332083275] [unitree_lidar_main_node]: initialize_type must be 1 (serial) or 2 (UDP)
+[ros2run]: Process exited with failure 1
+.............................................                            [100%]
+45 passed in 4.24s
+test_cloud_sonar_fusion_to_serial_and_stops (__main__.FusedStackTest.test_cloud_sonar_fusion_to_serial_and_stops) ... [WARN] [1795474518.484184834] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1795474518.484253204] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+ok
+test_optional_tof_stops_when_its_data_goes_stale (__main__.FusedStackTest.test_optional_tof_stops_when_its_data_goes_stale) ... [WARN] [1795474528.322996295] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1795474528.323050149] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+ok
+test_stationary_mode_keeps_final_output_zero (__main__.FusedStackTest.test_stationary_mode_keeps_final_output_zero) ... [WARN] [1795474534.909187972] [rcl]: ROS_LOCALHOST_ONLY is deprecated but still honored if it is enabled. Use ROS_AUTOMATIC_DISCOVERY_RANGE and ROS_STATIC_PEERS instead.
+[WARN] [1795474534.909224997] [rcl]: 'localhost_only' is enabled, 'automatic_discovery_range' and 'static_peers' will be ignored.
+ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 22.372s
+
+OK
