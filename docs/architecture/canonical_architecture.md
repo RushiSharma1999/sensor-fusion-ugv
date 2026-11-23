@@ -4,7 +4,7 @@
 
 This reference deliberately separates current implementation from the production target. Source code is authoritative for current behavior; [`../../CODEBASE_DEEP_DIVE.md`](../../CODEBASE_DEEP_DIVE.md) supplies the detailed static analysis. The target is governed by [`../decisions/ADR-001-canonical-stack.md`](../decisions/ADR-001-canonical-stack.md).
 
-Solid arrows in the current diagram are **Verified from code** host-side connections. Dashed arrows are missing, external, physical, or otherwise not verifiable from this repository. The diagram does not assert that all shown executables are launched together; no complete bring-up exists.
+Solid arrows in the current diagram are **Verified from code** host-side connections. Dashed arrows represent external or physical dependencies. The fused launcher starts the LiDAR, projection, VFH, ultrasonic processor, fusion, and mux nodes. The serial bridge and ToF processor are optional launch arguments.
 
 ## LiDAR-only experimental launcher
 
@@ -12,9 +12,9 @@ Solid arrows in the current diagram are **Verified from code** host-side connect
 
 ## Current repository architecture
 
-**Verified from code:** The Unitree ROS wrapper publishes `PointCloud2` on `/unilidar/cloud`, IMU data on `/unilidar/imu`, a dynamic initial-IMU-to-IMU transform, and a static IMU-to-LiDAR transform. It does not publish `LaserScan`. `gap_follow`, `vfh_obstacle_avoidance`, `vfh_with_esp_fusion`, and the LiDAR logger subscribe to `/scan`, for which no checked-in producer exists. The exact sensor contract and its hardware limitations are recorded in [`../interfaces/unitree_driver_tf_contract.md`](../interfaces/unitree_driver_tf_contract.md).
+**Verified from code** — The standalone port driver publishes `PointCloud2` on `/unilidar/cloud`, IMU data on `/unilidar/imu`, and sensor-frame TF. The fused launch selects the driver from `main` and starts the ROS `pointcloud_to_laserscan` projection in `unilidar_lidar`. The resulting `/scan` feeds VFH and its independent mux guard. The sensor origin still needs a measured alignment with the chassis. [Standalone port driver contract](../interfaces/unitree_driver_tf_contract.md) · [Fused launch details](../verification/fused_stack.md)
 
-**Verified from code:** `cmd_vel_to_serial` receives `/cmd_vel`, sends an ASCII `CMD` line, and republishes parsed odometry, ToF summary, and ultrasonic data from its serial boundary. The ToF and ultrasonic processors feed `fusion_node`; the standalone VFH publishes `/cmd_vel_vfh` and now defaults to LiDAR-only operation (`use_fusion=false`). Camera following publishes `/cmd_vel_camera`; `safety_mux_node` publishes final `/cmd_vel`, defaults to `lidar_only_mode=true`, ignores camera/fusion influence in that mode, and independently guards scan validity and freshness. Optional fusion/camera arbitration requires explicit configuration. See [the stationary validation profile](../verification/lidar_only_stationary.md).
+**Verified from code** — In the fused launch, the ultrasonic processor takes ESP32 telemetry from `cmd_vel_to_serial`. The fusion node sends directional penalties to the main-derived VFH and sends stop and speed limits to VFH and the mux. The mux owns `/cmd_vel`, which the serial bridge converts to ASCII `CMD`. The launch requires valid ultrasonic features and can also require ToF features. Camera following is available separately. [Fused launch details](../verification/fused_stack.md)
 
 **Verified from code:** `gap_follow` and `vfh_with_esp_fusion` also default to publishing `/cmd_vel` directly. They bypass the mux and can conflict with it if launched simultaneously. The ESP-fusion alternative also defaults to the same serial device as the ESP bridge while using a different `STATE|...` receive contract.
 
@@ -27,7 +27,7 @@ flowchart LR
     UL["Unitree LiDAR"] --> UROS["unitree_lidar_ros2_node"]
     UROS -->|"/unilidar/cloud · PointCloud2"| CLOUD["RViz / external tools"]
     UROS -->|"/unilidar/imu + sensor TF"| IMU["No project autonomy consumer"]
-    UROS -.->|"PointCloud2-to-LaserScan producer missing"| SCAN["/scan · LaserScan"]
+    UROS -->|"pointcloud_to_laserscan"| SCAN["/scan · LaserScan"]
 
     ESP["ESP serial boundary"] <-->|"CMD / ODOM / TOF / ULTRA"| BRIDGE["cmd_vel_to_serial"]
     BRIDGE -->|"/tof/front/summary"| TOF["ToF processor"]
@@ -35,7 +35,7 @@ flowchart LR
     TOF -->|"/tof/features"| FUSION["fusion_node"]
     US -->|"/ultrasonic/features"| FUSION
 
-    SCAN -.-> VFH["VFH"]
+    SCAN --> VFH["VFH"]
     FUSION -->|"penalties / stop / speed"| VFH
     VFH -->|"/cmd_vel_vfh"| MUX["safety_mux_node"]
 
@@ -57,11 +57,10 @@ flowchart LR
 
 Current limitations relevant to integration include:
 
-- **Verified from code:** no `/scan` producer or `base_link`-connected sensor TF exists;
+- **Verified from code** — Fused launch projects `/scan` in the sensor frame. A measured `base_link`-connected projection is pending.
 - **Verified from code:** the Unitree wrapper selects the checked-in sibling SDK archive by supported Linux architecture, while target-Pi compile/link verification remains pending;
 - **Verified from code:** multiple executable modes can own `/cmd_vel`;
-- **Verified from code:** the only launch starts the Unitree driver headlessly by default and can add RViz explicitly; it does not start `/scan`, navigation, fusion, serial actuation, or motors;
-- **Potential issue:** missing/stale ToF, fusion, and other safety inputs can be retained or interpreted permissively in parts of the current graph; and
+- **Verified from code** — Fused launch defaults to zero final motion and halts on missing required perception. A physically verified operator enable and emergency stop remain deployment work.
 - **Verified from code:** the LiDAR-only correction rejects invalid/stale scans in VFH and mux, keeps unknown sectors closed, removes the speed floor and open-loop escape, bounds serial requests, and latches serial faults. Automated software results are recorded separately from unverified physical behavior in [the stationary validation record](../verification/lidar_only_stationary.md).
 
 These findings do not prove that uninspected hardware lacks independent protection.

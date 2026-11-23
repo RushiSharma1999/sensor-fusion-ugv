@@ -6,6 +6,18 @@ This matrix is the planned acceptance inventory for the robot-ready roadmap. A r
 
 Allowed initial status is **Not Run**. Later results should use explicit terms such as **Pass**, **Fail**, **Blocked**, or **Not Applicable**, with evidence. “Automated” identifies software-executable checks; “hardware” identifies a physical test and must record whether wheels were raised or the robot was on a controlled floor.
 
+## Main-based fused stack — 2026-11-23
+
+| Check | Status | Scope |
+|---|---|---|
+| Install launch and executables | Pass | ROS 2 Jazzy x86_64 build and launch-argument discovery. |
+| Cloud projection, LiDAR/sonar fusion and serial packet output | Pass | Installed ROS launch with upstream converter, synthetic cloud, and v4-style telemetry through a virtual serial device. One final publisher was observed. |
+| Stopped default, near obstacles, invalid and missing inputs | Pass | Software fixtures covered stationary mode, near sonar and LiDAR returns, filtered/lost clouds, invalid or stale sonar, and stale enabled ToF. |
+| Target build, live UDP and chassis alignment | Not Run | Humble ARM64 and hardware were unavailable. |
+| Wheels-raised and floor driving | Not Run | No physical motor or emergency-stop verification. |
+
+[Procedure and evidence](fused_stack.md)
+
 ## Jetson stationary LiDAR-only correction — 2026-11-01
 
 User-authorized working-tree correction atop `775a357`, on existing branch `fix/02-unitree-driver-and-tf`; no branch switch or phase acceptance. [Procedure and evidence](lidar_only_stationary.md).

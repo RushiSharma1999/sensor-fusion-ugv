@@ -1,0 +1,146 @@
+"""ROS adapter for the hardware-independent enhanced controller."""
+
+from dataclasses import fields
+import json
+import math
+import time
+
+from geometry_msgs.msg import Twist
+from rclpy.clock import Clock, ClockType
+from rclpy.qos import qos_profile_sensor_data
+from rclpy.time import Time
+from sensor_msgs.msg import LaserScan
+
+from .motion_core import Config, MotionController
+from .motion_geometry import Mount
+
+
+class EnhancedAvoidance:
+    """Own scan ingestion and a steady 25 Hz publication clock; no fusion inputs."""
+
+    def __init__(self, node):
+        self.node = node
+        node.declare_parameter('scan_topic', '/scan')
+        node.declare_parameter('cmd_topic', '/cmd_vel_vfh')
+        values = {}
+        for item in fields(Config):
+            default = '[]' if item.name == 'footprint_xy' else item.default
+            node.declare_parameter(item.name, default)
+            value = node.get_parameter(item.name).value
+            values[item.name] = tuple(tuple(p) for p in json.loads(
+                value)) if item.name == 'footprint_xy' else value
+        self.core = MotionController(Config(**values))
+        self.cfg = self.core.cfg
+        self.tf_buffer = self.tf_listener = None
+        if self.cfg.transform_mode == 'tf':
+            from tf2_ros import Buffer, TransformListener
+            self.tf_buffer = Buffer()
+            self.tf_listener = TransformListener(self.tf_buffer, node)
+        self.cmd_pub = node.create_publisher(Twist, node.get_parameter('cmd_topic').value, 1)
+        self.scan_sub = node.create_subscription(LaserScan, node.get_parameter('scan_topic').value,
+                                                 self.on_scan, qos_profile_sensor_data)
+        self.last_log = -math.inf
+        self.log_key = None
+        self.steady_clock = Clock(clock_type=ClockType.STEADY_TIME)
+        self.timer = node.create_timer(1 / self.cfg.control_hz, self.tick, clock=self.steady_clock)
+        node.get_logger().info(
+            f'Enhanced LiDAR-only controller: profile={self.cfg.speed_profile} '
+            f'requested_limits={self.core.limits} geometry={self.cfg.geometry_mode} '
+            f'align_legacy_heading={self.cfg.align_legacy_heading} '
+            f'configured_lidar_yaw_rad={self.cfg.lidar_yaw:.6f} '
+            f'curves={self.cfg.enable_curves}; '
+            'legacy geometry/model are unverified until measured')
+
+    def mount_for(self, msg):
+        """Use scan-time base<-scan TF once; never also apply configured offsets."""
+        transform = self.tf_buffer.lookup_transform(self.cfg.base_frame, msg.header.frame_id,
+                                                    Time.from_msg(msg.header.stamp))
+        stamp_ns = transform.header.stamp.sec * 1_000_000_000 + transform.header.stamp.nanosec
+        scan_ns = msg.header.stamp.sec * 1_000_000_000 + msg.header.stamp.nanosec
+        if stamp_ns and abs(scan_ns - stamp_ns) * 1e-9 > self.cfg.transform_timeout_sec:
+            raise ValueError('transform_unavailable_or_stale')
+        q = transform.transform.rotation
+        if (not all(math.isfinite(v) for v in (q.x, q.y, q.z, q.w))
+                or abs(q.x) > 1e-4 or abs(q.y) > 1e-4
+                or abs(q.z * q.z + q.w * q.w - 1) > 1e-3):
+            raise ValueError('transform_nonplanar_or_invalid')
+        t = transform.transform.translation
+        return Mount(t.x, t.y, 2 * math.atan2(q.z, q.w))
+
+    def on_scan(self, msg):
+        now = time.monotonic()
+        mount = None
+        if self.tf_buffer is not None:
+            try:
+                mount = self.mount_for(msg)
+            except Exception:
+                self.core.last_arrival = now
+                self.core.observation_status = 'transform_unavailable_or_stale'
+                self.core.invalidate('transform_unavailable_or_stale')
+                self.cmd_pub.publish(Twist())
+                return
+        accepted = self.core.observe(msg, now, self.node.get_clock().now().nanoseconds, mount)
+        if not accepted and self.core.input_fault:
+            self.cmd_pub.publish(Twist())
+
+    def tick(self):
+        now = time.monotonic()
+        decision = self.core.tick(now, self.node.get_clock().now().nanoseconds)
+        # A slow planning tick must not publish motion based on an age captured
+        # before computation. Recheck at publication, independently of callbacks.
+        published_at = time.monotonic()
+        compute_elapsed = published_at - now
+        if self.core.scan is not None:
+            scan = self.core.scan
+            age = max(published_at - scan.received + max(0, scan.source_age),
+                      (self.node.get_clock().now().nanoseconds - scan.stamp_ns) * 1e-9)
+            decision.scan_age = age
+            if age > self.cfg.scan_timeout_sec:
+                self.core.invalidate('scan_timeout_during_planning')
+                self.core.begin_recovery(published_at)
+                self.core.stop(decision, 'scan_timeout_during_planning', published_at)
+        if compute_elapsed > self.cfg.control_compute_budget_sec:
+            self.core.begin_recovery(published_at)
+            self.core.stop(decision, 'control_compute_budget_exceeded', published_at)
+        msg = Twist()
+        # The core may use integer zero while braking a turn. ROS double fields
+        # require Python floats even when the numeric value is exactly zero.
+        msg.linear.x = float(decision.command.v)
+        msg.angular.z = float(decision.command.w)
+        self.cmd_pub.publish(msg)
+        self.core.last_publication = published_at
+        key = (decision.state, decision.reason, decision.passing_side)
+        new_safety_stop = (key != self.log_key and decision.state in ('stopped', 'latched')
+                           and decision.reason not in
+                           ('waiting_for_scan', 'confirming_usable_perception',
+                            'perception_stability_confirming'))
+        if new_safety_stop or now - self.last_log >= (0.2 if key != self.log_key else 0.5):
+            def clean(value):
+                if isinstance(value, float) and not math.isfinite(value):
+                    return None
+                if hasattr(value, '__dataclass_fields__'):
+                    return {k: clean(v) for k, v in vars(value).items()}
+                return value
+            record = clean(decision)
+            record.update(
+                event='motion',
+                geometry=self.cfg.geometry_mode,
+                geometry_reference=(self.cfg.base_frame if self.cfg.geometry_mode == 'polygon'
+                                    else 'lidar_origin_heading_aligned'
+                                    if self.cfg.align_legacy_heading else self.cfg.scan_frame),
+                scan_to_geometry_yaw_rad=(self.core.scan.mount.yaw
+                                          if self.core.scan is not None else None),
+                coverage_max_gap_deg=self.cfg.coverage_max_gap_deg,
+                coverage_gap_frame=self.cfg.scan_frame,
+                compute_elapsed_sec=compute_elapsed,
+                compute_budget_sec=self.cfg.control_compute_budget_sec,
+                swept_geometry_cache=self.core._swept_geometry.cache_info()._asdict(),
+                arrival_age_sec=None if self.core.last_arrival is None else now -
+                self.core.last_arrival,
+                accepted_age_sec=None if self.core.last_accepted is None else now -
+                self.core.last_accepted,
+                source_age_on_arrival_sec=(None if self.core.scan is None
+                                           else self.core.scan.source_age),
+                requested_units='m/s,rad/s; physical calibration required')
+            self.node.get_logger().info(json.dumps(record, sort_keys=True, allow_nan=False))
+            self.last_log, self.log_key = now, key

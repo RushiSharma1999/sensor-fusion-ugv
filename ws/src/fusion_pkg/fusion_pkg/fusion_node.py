@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import math
+import time
 
 import rclpy
 from rclpy.node import Node
@@ -13,6 +14,9 @@ class FusionNode(Node):
         # ---------- Parameters ----------
         self.declare_parameter('tof_features_topic', '/tof/features')
         self.declare_parameter('ultrasonic_features_topic', '/ultrasonic/features')
+        self.declare_parameter('require_ultrasonic', False)
+        self.declare_parameter('require_tof', False)
+        self.declare_parameter('feature_timeout_sec', 0.5)
 
         # Match VFH sectorization
         self.declare_parameter('front_fov_deg', 160.0)
@@ -52,6 +56,11 @@ class FusionNode(Node):
 
         self.tof_features_topic = self.get_parameter('tof_features_topic').value
         self.ultrasonic_features_topic = self.get_parameter('ultrasonic_features_topic').value
+        self.require_ultrasonic = self.get_parameter('require_ultrasonic').value
+        self.require_tof = self.get_parameter('require_tof').value
+        self.feature_timeout = self.get_parameter('feature_timeout_sec').value
+        if not math.isfinite(self.feature_timeout) or self.feature_timeout <= 0:
+            raise ValueError('feature_timeout_sec must be finite and positive')
 
         self.front_fov_deg = float(self.get_parameter('front_fov_deg').value)
         self.sector_angle_deg = float(self.get_parameter('sector_angle_deg').value)
@@ -92,6 +101,8 @@ class FusionNode(Node):
         # ---------- Latest sensor states ----------
         self.tof_data = None
         self.ultra_data = None
+        self.last_tof_time = None
+        self.last_ultra_time = None
         self.camera_data = None
 
         # ---------- ROS ----------
@@ -133,9 +144,11 @@ class FusionNode(Node):
 
     def on_tof_features(self, msg: String):
         self.tof_data = self.parse_fields(msg.data)
+        self.last_tof_time = time.monotonic()
 
     def on_ultrasonic_features(self, msg: String):
         self.ultra_data = self.parse_fields(msg.data)
+        self.last_ultra_time = time.monotonic()
 
     # ---------- Helpers ----------
     @staticmethod
@@ -167,15 +180,18 @@ class FusionNode(Node):
         critical_stop = False
         speed_limit = 1.0
         debug_parts = []
+        now = time.monotonic()
+        tof_valid = False
+        ultra_valid = False
 
         # ---------------- ToF contribution ----------------
-        if self.tof_data is not None:
+        if self.last_tof_time is not None and now - self.last_tof_time <= self.feature_timeout:
             try:
                 valid = int(self.tof_data.get('VALID', '0'))
                 state = self.tof_data.get('STATE', 'invalid')
 
-                floor_hazard = float(self.tof_data.get('FLOOR', '0.0'))
-                dropoff_hazard = float(self.tof_data.get('DROPOFF', '0.0'))
+                floor_hazard = float(self.tof_data['FLOOR']) if valid == 1 else 0.0
+                dropoff_hazard = float(self.tof_data['DROPOFF']) if valid == 1 else 0.0
 
                 near_min = float(self.tof_data.get('NEAR_MIN', '300.0'))
                 near_avg = float(self.tof_data.get('NEAR_AVG', '300.0'))
@@ -193,7 +209,10 @@ class FusionNode(Node):
                 far_avg = 300.0
                 bearing = self.tof_center_bearing_rad
 
-            if valid == 1:
+            if valid == 1 and all(math.isfinite(value) for value in (
+                floor_hazard, dropoff_hazard, near_min, near_avg, far_avg, bearing
+            )):
+                tof_valid = True
                 tof_penalty = (
                     self.tof_floor_weight * floor_hazard +
                     self.tof_dropoff_weight * dropoff_hazard
@@ -228,21 +247,20 @@ class FusionNode(Node):
                 debug_parts.append("tof(invalid)")
 
         # ---------------- Ultrasonic contribution ----------------
-        if self.ultra_data is not None:
+        if self.last_ultra_time is not None and now - self.last_ultra_time <= self.feature_timeout:
             try:
                 valid = int(self.ultra_data.get('VALID', '0'))
                 state = self.ultra_data.get('STATE', 'invalid')
 
-                left_cm = float(self.ultra_data.get('LEFT_CM', '999.0'))
-                center_cm = float(self.ultra_data.get('CENTER_CM', '999.0'))
-                right_cm = float(self.ultra_data.get('RIGHT_CM', '999.0'))
-
-                left_hazard = float(self.ultra_data.get('LEFT_HAZARD', '0.0'))
-                center_hazard = float(self.ultra_data.get('CENTER_HAZARD', '0.0'))
-                right_hazard = float(self.ultra_data.get('RIGHT_HAZARD', '0.0'))
-
-                min_cm = float(self.ultra_data.get('MIN_CM', '999.0'))
-                avg_cm = float(self.ultra_data.get('AVG_CM', '999.0'))
+                if valid == 1:
+                    left_cm = float(self.ultra_data['LEFT_CM'])
+                    center_cm = float(self.ultra_data['CENTER_CM'])
+                    right_cm = float(self.ultra_data['RIGHT_CM'])
+                    left_hazard = float(self.ultra_data['LEFT_HAZARD'])
+                    center_hazard = float(self.ultra_data['CENTER_HAZARD'])
+                    right_hazard = float(self.ultra_data['RIGHT_HAZARD'])
+                    min_cm = float(self.ultra_data['MIN_CM'])
+                    avg_cm = float(self.ultra_data['AVG_CM'])
                 strongest_name = self.ultra_data.get('STRONGEST', 'none')
             except Exception as e:
                 self.get_logger().warn(f'Bad /ultrasonic/features fields: {e}')
@@ -258,7 +276,10 @@ class FusionNode(Node):
                 avg_cm = 999.0
                 strongest_name = 'none'
 
-            if valid == 1:
+            if valid == 1 and all(math.isfinite(value) for value in (
+                left_cm, center_cm, right_cm, left_hazard, center_hazard, right_hazard, min_cm, avg_cm
+            )):
+                ultra_valid = True
                 self.add_directional_penalty(
                     penalties,
                     center_bearing=self.ultra_left_bearing_rad,
@@ -304,6 +325,15 @@ class FusionNode(Node):
                 )
             else:
                 debug_parts.append(f"ultra({state})")
+
+        if self.require_ultrasonic and not ultra_valid:
+            critical_stop = True
+            debug_parts.append('required_ultrasonic_unavailable')
+        if self.require_tof and not tof_valid:
+            critical_stop = True
+            debug_parts.append('required_tof_unavailable')
+        if critical_stop:
+            speed_limit = 0.0
 
         # ---------------- Future camera contribution ----------------
         if self.camera_data is not None:

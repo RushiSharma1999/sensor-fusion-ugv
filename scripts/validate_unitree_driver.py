@@ -395,12 +395,12 @@ def parse_source_contract(parameters: dict[str, Any]) -> None:
         'C++ declared parameter names/defaults differ from the Phase 2 contract',
     )
     require(
-        parameters == EXPECTED_PARAMETERS,
+        parameters == {**EXPECTED_PARAMETERS, 'cloud_scan_num': 36},
         'installed parameter-file names/defaults differ from the Phase 2 contract',
     )
     require(
-        declared_parameters == parameters,
-        'C++ defaults and installed parameter-file defaults differ',
+        {**declared_parameters, 'cloud_scan_num': 36} == parameters,
+        'C++ defaults and installed parameter-file defaults differ beyond the 36-packet profile',
     )
     require(
         required_parameters == REQUIRED_WHEN_ROBOT_TF_ENABLED,

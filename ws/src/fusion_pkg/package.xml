@@ -11,6 +11,15 @@
 
   <depend>rclpy</depend>
   <depend>std_msgs</depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>unitree_lidar_ros2</exec_depend>
+  <exec_depend>pointcloud_to_laserscan</exec_depend>
+  <exec_depend>vfh_pkg</exec_depend>
+  <exec_depend>ultrasonic_pkg</exec_depend>
+  <exec_depend>tof_processor_pkg</exec_depend>
+  <exec_depend>vision_uart_pkg</exec_depend>
+  <exec_depend>esp_bridge</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

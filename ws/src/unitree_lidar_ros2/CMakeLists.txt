@@ -77,31 +77,25 @@ file(WRITE
 
 add_definitions(${PCL_DEFINITIONS})
 
-add_executable(unitree_lidar_ros2_node src/unitree_lidar_ros2_node.cpp)
-
-target_include_directories(unitree_lidar_ros2_node PRIVATE
-  "${CMAKE_CURRENT_SOURCE_DIR}/include"
-  ${PCL_INCLUDE_DIRS}
-)
-
-target_link_libraries(unitree_lidar_ros2_node
-  ${PCL_LIBRARIES}
-  unitree_lidar_sdk
-  Threads::Threads
-)
-
-ament_target_dependencies(
-  unitree_lidar_ros2_node
-  rclcpp std_msgs
-  sensor_msgs
-  geometry_msgs
-  tf2
-  tf2_ros
-  pcl_conversions
-)
+set(UNITREE_DRIVER_TARGETS unitree_lidar_ros2_node unitree_lidar_main_node)
+foreach(driver IN LISTS UNITREE_DRIVER_TARGETS)
+  add_executable(${driver} src/${driver}.cpp)
+  target_include_directories(${driver} PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    ${PCL_INCLUDE_DIRS}
+  )
+  target_link_libraries(${driver}
+    ${PCL_LIBRARIES}
+    unitree_lidar_sdk
+    Threads::Threads
+  )
+  ament_target_dependencies(${driver}
+    rclcpp std_msgs sensor_msgs geometry_msgs tf2 tf2_ros pcl_conversions
+  )
+endforeach()
 
 install(TARGETS
-  unitree_lidar_ros2_node
+  ${UNITREE_DRIVER_TARGETS}
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -78,14 +78,22 @@ class UltrasonicProcessorNode(Node):
     def clamp(x: float, lo: float, hi: float) -> float:
         return max(lo, min(hi, x))
 
-    def get_distance_cm(self, data: dict, aliases, default_value=999.0):
+    def get_distance_cm(self, data: dict, aliases, *validity_keys):
+        flags = [data[key] for key in validity_keys if key in data]
+        if flags and any(flag != '1' for flag in flags):
+            return None
         for key in aliases:
             if key in data:
                 try:
-                    return float(data[key])
+                    distance = float(data[key])
                 except ValueError:
-                    return default_value
-        return default_value
+                    return None
+                # Explicit firmware validity can describe a clear return beyond
+                # the hazard window. The legacy schema has distance alone.
+                max_distance = max(400.0, self.max_range_cm) if flags else self.max_range_cm
+                if math.isfinite(distance) and self.min_range_cm <= distance <= max_distance:
+                    return distance
+        return None
 
     def normalize_distance(self, d_cm: float) -> float:
         """
@@ -110,13 +118,17 @@ class UltrasonicProcessorNode(Node):
             self.features_pub.publish(msg)
             return
 
-        left_cm = self.get_distance_cm(self.latest_raw, ['LEFT', 'L', 'UL_LEFT', 'ULTRA_LEFT', 'FL'])
-        center_cm = self.get_distance_cm(self.latest_raw, ['CENTER', 'C', 'UL_CENTER', 'ULTRA_CENTER', 'FC', 'FRONT'])
-        right_cm = self.get_distance_cm(self.latest_raw, ['RIGHT', 'R', 'UL_RIGHT', 'ULTRA_RIGHT', 'FR'])
-
-        left_valid = left_cm <= self.max_range_cm
-        center_valid = center_cm <= self.max_range_cm
-        right_valid = right_cm <= self.max_range_cm
+        left = self.get_distance_cm(
+            self.latest_raw, ['LEFT', 'L', 'UL_LEFT', 'ULTRA_LEFT', 'FL'], 'VALID_LEFT')
+        center = self.get_distance_cm(
+            self.latest_raw, ['CENTER', 'C', 'UL_CENTER', 'ULTRA_CENTER', 'FC', 'FRONT'],
+            'VALID_FRONT', 'VALID_CENTER')
+        right = self.get_distance_cm(
+            self.latest_raw, ['RIGHT', 'R', 'UL_RIGHT', 'ULTRA_RIGHT', 'FR'], 'VALID_RIGHT')
+        left_valid, center_valid, right_valid = left is not None, center is not None, right is not None
+        left_cm = left if left_valid else 999.0
+        center_cm = center if center_valid else 999.0
+        right_cm = right if right_valid else 999.0
 
         valid_count = sum([left_valid, center_valid, right_valid])
 

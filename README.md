@@ -58,7 +58,7 @@ Use rosdep to resolve those declarations. Do not substitute undocumented global 
 | ROS/C++/Python dependencies declared in `package.xml`, including `python3-serial`, PCL, messages, TF2, launch, and RViz | Required for source-package build and installed package runtime | Resolved by rosdep from `ws/src`; no global pip install. |
 | Checked-in Unitree headers and `lib/aarch64/libunilidar_sdk2.a` | Required for the Unitree source build and core LiDAR runtime | Version controlled; the target link path is checked by `scripts/verify_build.sh`. |
 | `python3-colcon-common-extensions`, `python3-rosdep`, and `git` | Required build/bootstrap tools | Installed explicitly with apt before rosdep/build. |
-| `pointcloud_to_laserscan` | Recovered legacy robot bring-up dependency | Not required to compile Phase 1. Production projection/configuration remains planned for Phase 3. |
+| `pointcloud_to_laserscan` | Fused stack and legacy bring-up runtime dependency | Declared by `fusion_pkg` and resolved by rosdep. |
 | `tmux` | Recovered legacy bring-up/process-management tool | Optional for development; not used by the Phase 1 build or verification scripts. |
 | `teleop_twist_keyboard` | Development/manual-test dependency | Optional and not used during Phase 1 acceptance. |
 | `foxglove_bridge` | Optional visualization/telemetry dependency | Optional and not used during Phase 1 acceptance. |
@@ -66,7 +66,6 @@ Use rosdep to resolve those declarations. Do not substitute undocumented global 
 On Humble, install a later test or legacy tool only for the corresponding explicitly reviewed activity:
 
 ```bash
-sudo apt install -y ros-humble-pointcloud-to-laserscan
 sudo apt install -y ros-humble-teleop-twist-keyboard tmux
 sudo apt install -y ros-humble-foxglove-bridge
 ```
@@ -173,7 +172,11 @@ Runtime nodes require their configured LiDAR, serial, UART, and sensor interface
 
 The recovered runtime used `ROS_DOMAIN_ID=10`. That value is historical runtime configuration, not a compilation prerequisite, and Phase 1 does not modify a user's global shell startup files.
 
-After a successful build, `./run_lidar.sh` launches the Unitree ROS wrapper headlessly using installed launch and parameter resources. It requires a separately configured LiDAR connection. Run `./run_lidar.sh use_rviz:=true` only when visualization is deliberate. The wrapper publishes `PointCloud2` and IMU data; it does not provide the planned robot-centric `/scan` integration. Its exact topics, frames, TF behavior, parameters, QoS, and evidence limits are defined in [`docs/interfaces/unitree_driver_tf_contract.md`](docs/interfaces/unitree_driver_tf_contract.md).
+After a successful build, `./run_lidar.sh` launches the port branch's standalone Unitree ROS wrapper headlessly. It publishes `PointCloud2` and IMU data. Run `./run_lidar.sh use_rviz:=true` to add RViz. Its topics, frames, QoS, and evidence are documented in the [Unitree driver contract](docs/interfaces/unitree_driver_tf_contract.md).
+
+## LiDAR and ultrasonic bring-up
+
+Run `./start_bot.sh` from this checkout to start the fused stack with motion disabled and no ESP32 connection. To read ESP32 sensor telemetry while keeping ROS motor commands at zero, pass the robot's existing serial path as `serial_port:=/dev/serial/by-id/...`. This launch uses the LiDAR driver and VFH from `main`, and feeds ultrasonic sector penalties and stop/slow signals into the navigation stack. Set `use_tof:=true` only on a robot with working ToF telemetry. [Procedure, diagnostics and software evidence](docs/verification/fused_stack.md)
 
 ## Later deployment requirements
 

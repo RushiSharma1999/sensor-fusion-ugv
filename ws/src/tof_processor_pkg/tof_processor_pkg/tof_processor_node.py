@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import collections
+import math
+import time
 
 import rclpy
 from rclpy.node import Node
@@ -14,6 +16,7 @@ class TofProcessorNode(Node):
         self.declare_parameter('summary_topic', '/tof/front/summary')
         self.declare_parameter('features_topic', '/tof/features')
         self.declare_parameter('publish_hz', 15.0)
+        self.declare_parameter('stale_timeout_sec', 0.5)
 
         # Invalid handling
         self.declare_parameter('far_avg_invalid_high', 280.0)
@@ -46,6 +49,9 @@ class TofProcessorNode(Node):
         summary_topic = self.get_parameter('summary_topic').value
         features_topic = self.get_parameter('features_topic').value
         publish_hz = float(self.get_parameter('publish_hz').value)
+        self.stale_timeout = self.get_parameter('stale_timeout_sec').value
+        if not math.isfinite(self.stale_timeout) or self.stale_timeout <= 0:
+            raise ValueError('stale_timeout_sec must be finite and positive')
 
         self.far_avg_invalid_high = float(self.get_parameter('far_avg_invalid_high').value)
         self.near_avg_invalid_high = float(self.get_parameter('near_avg_invalid_high').value)
@@ -71,6 +77,7 @@ class TofProcessorNode(Node):
 
         # ---------- State ----------
         self.front_data = None
+        self.last_front_time = None
 
         self.baseline_center = collections.deque(maxlen=self.baseline_window)
         self.baseline_near_min = collections.deque(maxlen=self.baseline_window)
@@ -105,6 +112,7 @@ class TofProcessorNode(Node):
 
     def on_front(self, msg: String):
         self.front_data = self.parse_summary(msg.data)
+        self.last_front_time = time.monotonic()
 
     @staticmethod
     def clamp(x: float, lo: float, hi: float) -> float:
@@ -154,7 +162,10 @@ class TofProcessorNode(Node):
             self.baseline_far_avg.append(far_avg)
 
     def publish_features(self):
-        if self.front_data is None:
+        if self.last_front_time is None or time.monotonic() - self.last_front_time > self.stale_timeout:
+            out = String()
+            out.data = 'VALID:0|STATE:stale'
+            self.features_pub.publish(out)
             return
 
         try:
@@ -169,7 +180,10 @@ class TofProcessorNode(Node):
             self.get_logger().warn(f'Bad summary fields: {e}')
             return
 
-        frame_valid = self.is_valid_frame(valid, center, near_min, near_avg, far_avg)
+        frame_valid = (
+            all(math.isfinite(value) for value in (center, near_min, near_avg, far_avg))
+            and self.is_valid_frame(valid, center, near_min, near_avg, far_avg)
+        )
 
         if not frame_valid:
             out = String()

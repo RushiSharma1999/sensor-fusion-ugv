@@ -52,6 +52,7 @@ class SafetyMuxNode(Node):
         self.declare_parameter('vfh_timeout_sec', 0.5)
         self.declare_parameter('prefer_camera_when_target_seen', False)
         self.declare_parameter('lidar_only_mode', True)
+        self.declare_parameter('motion_enabled', True)
         self.declare_parameter('scan_topic', '/scan')
         self.declare_parameter('scan_timeout_sec', 0.25)
         self.declare_parameter('max_scan_age_sec', 0.5)
@@ -61,6 +62,7 @@ class SafetyMuxNode(Node):
         self.declare_parameter('max_angular_speed', 0.4)
         self.declare_parameter('fusion_timeout_sec', 0.5)
         self.lidar_only = bool(self.get_parameter('lidar_only_mode').value)
+        self.motion_enabled = bool(self.get_parameter('motion_enabled').value)
         self.scan_timeout = float(self.get_parameter('scan_timeout_sec').value)
         self.max_scan_age = float(self.get_parameter('max_scan_age_sec').value)
         self.half_fov = math.radians(float(self.get_parameter('front_fov_deg').value)) / 2
@@ -154,6 +156,9 @@ class SafetyMuxNode(Node):
     def on_critical_stop(self, msg):
         self.critical_stop = msg.data
         self.last_stop_time = time.monotonic()
+        if self.critical_stop and not self.lidar_only:
+            self.last_vfh_time = None
+            self.cmd_pub.publish(Twist())
 
     def on_speed_limit(self, msg):
         value = float(msg.data)
@@ -206,6 +211,9 @@ class SafetyMuxNode(Node):
         elif not self.lidar_only and (self.critical_stop or self.speed_limit <= 0):
             final_cmd = self.stop_cmd()
             mode = 'critical_stop'
+
+        elif not self.motion_enabled:
+            mode = 'motion_disabled'
 
         elif (
             not self.lidar_only
